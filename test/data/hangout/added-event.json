@@ -1,0 +1,15 @@
+{
+  "type": "ADDED_TO_SPACE",
+  "eventTime": "2017-03-02T19:02:59.910959Z",
+  "space": {
+    "name": "spaces/AAAAAAAAAAA",
+    "displayName": "Chuck Norris Discussion Room",
+    "type": "ROOM"
+  },
+  "user": {
+    "name": "users/12345678901234567890",
+    "displayName": "Chuck Norris",
+    "avatarUrl": "https://lh3.googleusercontent.com/.../photo.jpg",
+    "email": "chuck@example.com"
+  }
+}
