@@ -4,17 +4,21 @@ import (
 	"flag"
 	"github.com/sirupsen/logrus"
 	"github.com/sprintbot.io/sprintbot/pkg/chat"
-	"github.com/sprintbot.io/sprintbot/pkg/data/memory"
+	"github.com/sprintbot.io/sprintbot/pkg/data/bolt"
 	"github.com/sprintbot.io/sprintbot/pkg/hangout"
 	"github.com/sprintbot.io/sprintbot/pkg/team"
 	"github.com/sprintbot.io/sprintbot/pkg/web"
 	"net/http"
 )
 
-var logLevel string
+var (
+	logLevel string
+	dbLoc string
+)
 
 func main() {
 	flag.StringVar(&logLevel, "log-level", "debug", "use this to set log level: error, info, debug")
+	flag.StringVar(&dbLoc, "db-loc", "./bot-db", "set the location of the db file")
 	flag.Parse()
 	switch logLevel {
 	case "info":
@@ -31,13 +35,26 @@ func main() {
 		logrus.Error("log-level set to error")
 	}
 	logrus.SetLevel(logrus.InfoLevel)
+
+	db, err := bolt.Connect(dbLoc)
+	if err != nil{
+		panic(err)
+	}
+	defer bolt.Disconnect()
+
+	if err := bolt.Setup(); err != nil{
+		panic(err)
+	}
+
+
 	router := web.BuildRouter()
 	logger := logrus.StandardLogger()
 	httpHandler := web.BuildHTTPHandler(router)
 
-	userRepo := memory.NewUserRespository()
+	userRepo := bolt.NewUserRepository(db)
+	teamRepo := bolt.NewTeamRespository(db)
 	chatActionHandler := chat.NewActionHandler()
-	teamService := team.NewService(userRepo)
+	teamService := team.NewService(userRepo, teamRepo)
 
 	//sys
 	{

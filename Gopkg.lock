@@ -26,6 +26,15 @@
   version = "v1.0.1"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/matryer/moq"
+  packages = [
+    ".",
+    "pkg/moq"
+  ]
+  revision = "5df7c6ae5624ff5d92cc191e0b730df003c976cb"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -36,6 +45,12 @@
   packages = ["."]
   revision = "bcd833dfe83d3cebad139e4a29ed79cb2318bf95"
   version = "v1.2.0"
+
+[[projects]]
+  name = "go.etcd.io/bbolt"
+  packages = ["."]
+  revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
+  version = "v1.3.0"
 
 [[projects]]
   branch = "master"
@@ -52,9 +67,20 @@
   ]
   revision = "4ed8d59d0b35e1e29334a206d1b3f38b1e5dfb31"
 
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/tools"
+  packages = [
+    "go/ast/astutil",
+    "go/buildutil",
+    "go/internal/cgo",
+    "go/loader"
+  ]
+  revision = "1d424dbce8dd500e9e449fd3ff9d0668c09e2ae1"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d64f9f1479e67234846d219c59bb7f4f63039b14704154ab8e8c49853224af65"
+  inputs-digest = "8190b0dc01eef3e7c661f9cd82b3075de16ae81077b79ea6ec572a92469a70be"
   solver-name = "gps-cdcl"
   solver-version = 1
