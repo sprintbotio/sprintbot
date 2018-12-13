@@ -10,6 +10,7 @@ import (
 
 var (
 	lockTeamRepoMockAddTeam sync.RWMutex
+	lockTeamRepoMockGetTeam sync.RWMutex
 )
 
 // TeamRepoMock is a mock implementation of TeamRepo.
@@ -21,6 +22,9 @@ var (
 //             AddTeamFunc: func(team domain.Team) (string, error) {
 // 	               panic("TODO: mock out the AddTeam method")
 //             },
+//             GetTeamFunc: func(id string) (*domain.Team, error) {
+// 	               panic("TODO: mock out the GetTeam method")
+//             },
 //         }
 //
 //         // TODO: use mockedTeamRepo in code that requires TeamRepo
@@ -31,12 +35,20 @@ type TeamRepoMock struct {
 	// AddTeamFunc mocks the AddTeam method.
 	AddTeamFunc func(team domain.Team) (string, error)
 
+	// GetTeamFunc mocks the GetTeam method.
+	GetTeamFunc func(id string) (*domain.Team, error)
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// AddTeam holds details about calls to the AddTeam method.
 		AddTeam []struct {
 			// Team is the team argument value.
 			Team domain.Team
+		}
+		// GetTeam holds details about calls to the GetTeam method.
+		GetTeam []struct {
+			// ID is the id argument value.
+			ID string
 		}
 	}
 }
@@ -69,5 +81,36 @@ func (mock *TeamRepoMock) AddTeamCalls() []struct {
 	lockTeamRepoMockAddTeam.RLock()
 	calls = mock.calls.AddTeam
 	lockTeamRepoMockAddTeam.RUnlock()
+	return calls
+}
+
+// GetTeam calls GetTeamFunc.
+func (mock *TeamRepoMock) GetTeam(id string) (*domain.Team, error) {
+	if mock.GetTeamFunc == nil {
+		panic("TeamRepoMock.GetTeamFunc: method is nil but TeamRepo.GetTeam was just called")
+	}
+	callInfo := struct {
+		ID string
+	}{
+		ID: id,
+	}
+	lockTeamRepoMockGetTeam.Lock()
+	mock.calls.GetTeam = append(mock.calls.GetTeam, callInfo)
+	lockTeamRepoMockGetTeam.Unlock()
+	return mock.GetTeamFunc(id)
+}
+
+// GetTeamCalls gets all the calls that were made to GetTeam.
+// Check the length with:
+//     len(mockedTeamRepo.GetTeamCalls())
+func (mock *TeamRepoMock) GetTeamCalls() []struct {
+	ID string
+} {
+	var calls []struct {
+		ID string
+	}
+	lockTeamRepoMockGetTeam.RLock()
+	calls = mock.calls.GetTeam
+	lockTeamRepoMockGetTeam.RUnlock()
 	return calls
 }

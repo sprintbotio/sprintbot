@@ -39,6 +39,35 @@ func (ad *Service)RegisterTeam(team, room, owner string)(string,error) {
 	return t.ID, nil
 }
 
-func (ad *Service)Team(id string)(*domain.Team, error)  {
-	return ad.teamRepo.GetTeam(id)
+func (ad *Service)PopulateTeam(id string)(*domain.Team, error)  {
+	t , err := ad.teamRepo.GetTeam(id)
+	if err != nil{
+		return nil, err
+	}
+	userNames := []string{}
+	for _, m := range t.Members{
+		u, err := ad.userRepo.GetUser(m)
+		if err != nil{
+			return nil, err
+		}
+		userNames = append(userNames, u.Name)
+	}
+	t.Members = userNames
+	return t, nil
+}
+
+func (ad *Service)AddUserToTeam(name, teamid string)error  {
+	t, err := ad.teamRepo.GetTeam(teamid)
+	if err != nil{
+		return err
+	}
+	u := domain.User{Admin:false}
+	u.Name = name
+	u.Team = teamid
+	id, err := ad.userRepo.AddUser(&u)
+	if err != nil{
+		return errors.Wrap(err, "failed to add user to team")
+	}
+	t.Members = append(t.Members, id)
+	return ad.teamRepo.Update(t)
 }

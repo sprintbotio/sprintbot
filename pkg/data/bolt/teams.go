@@ -31,15 +31,26 @@ func (tr *TeamRepository)AddTeam(team domain.Team)(string,error)  {
 
 func (tr *TeamRepository)GetTeam(id string)(*domain.Team, error )  {
 	var t = domain.Team{}
-	tr.db.View(func(tx *bolt.Tx) error {
+	err := tr.db.View(func(tx *bolt.Tx) error {
 		data := tx.Bucket(teamsBucket).Get([]byte(id))
 		if len(data) == 0{
 			return errors.New("no such team")
 		}
-		if err := json.Unmarshal(data,t); err != nil{
+		if err := json.Unmarshal(data,&t); err != nil{
 			return errors.Wrap(err, "failed to decode team")
 		}
 		return nil
 	})
-	return &t,nil
+	return &t,err
+}
+
+func (tr *TeamRepository)Update(t *domain.Team)error  {
+
+	return tr.db.Update(func(tx *bolt.Tx) error {
+		data, err := json.Marshal(t)
+		if err != nil{
+			return errors.Wrap(err, "failed to marshal team when adding user")
+		}
+		return tx.Bucket([]byte(teamsBucket)).Put([]byte(t.ID),data)
+	})
 }

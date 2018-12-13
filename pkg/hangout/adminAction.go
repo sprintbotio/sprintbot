@@ -3,6 +3,7 @@ package hangout
 import (
 	"github.com/pkg/errors"
 	"github.com/sprintbot.io/sprintbot/pkg/chat"
+	"strings"
 )
 
 func (ah *ActionHandler)handleAdmin(c command, m *Event)(string,error)  {
@@ -13,11 +14,11 @@ func (ah *ActionHandler)handleAdmin(c command, m *Event)(string,error)  {
 	switch subCMD {
 	case "help":
 		return ah.adminHelp(), nil
-	case "add-user-to-team":
-		if len(c.args) != 2{
+	case "add-users-to-team":
+		if len(c.args) < 2{
 			return "", &chat.MissingArgs{}
 		}
-		return ah.adminAddUserToTeam(c.args[1], m.Space.Name)
+		return ah.adminAddUsersToTeam(c.args[1], m.Space.Name)
 	case "view-team":
 		return ah.adminViewTeam(m.Space.Name)
 		
@@ -34,14 +35,16 @@ func (ah *ActionHandler)adminHelp()string{
 `
 }
 
-func (ah *ActionHandler)adminAddUserToTeam(user, team string)(string, error) {
+func (ah *ActionHandler)adminAddUsersToTeam(user string, team string)(string, error) {
+
 	return "", nil
 }
 
 func (ah *ActionHandler)adminViewTeam(team string)(string, error)  {
-	t, err := ah.teamService.Team(team)
+	t, err := ah.teamService.PopulateTeam(team)
 	if err != nil{
 		return "", errors.Wrap(err,"failed to get the team")
 	}
-	return `| team name : `+t.Name+` |`, nil
+	return `| team name : `+t.Name+` |
+| Members   : `+strings.Join(t.Members,"\n")+``, nil
 }

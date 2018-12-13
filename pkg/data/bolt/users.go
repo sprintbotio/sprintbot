@@ -32,3 +32,17 @@ func (ur *UserRepository)AddUser(u *domain.User)(string, error){
 	return u.ID, err
 }
 
+func (ur *UserRepository)GetUser(id string)(*domain.User, error )  {
+	var u domain.User
+	err := ur.db.View(func(tx *bolt.Tx) error {
+		data := tx.Bucket(usersBucket).Get([]byte(id))
+		if len(data) == 0{
+			return errors.New("failed to find user with id " + id)
+		}
+		if err := json.Unmarshal(data, &u); err != nil{
+			return err
+		}
+		return nil
+	})
+	return &u, err
+}
