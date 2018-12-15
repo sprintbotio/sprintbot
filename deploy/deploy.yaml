@@ -1,0 +1,126 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: sprintbot
+  name: sprintbot
+  namespace: sprintbot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sprintbot
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: sprintbot
+    spec:
+      containers:
+      - image: quay.io/sprintbot/sprintbot:dev
+        imagePullPolicy: Always
+        name: sprintbot
+        volumeMounts:
+          - mountPath: "/data/bolt"
+            name: bolt-storage
+        command:
+          - /usr/local/bin/sprintbot
+          - --db-loc=/data/bolt/db
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /api/sys/info/alive
+            port: 8080
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      volumes:
+        - name: bolt-storage
+          persistentVolumeClaim:
+            claimName: sprintbot
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sprintbot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: do-block-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sprintbot
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: sprintbot
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    certmanager.k8s.io/acme-challenge-type: http01
+    certmanager.k8s.io/issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: nginx
+  name: sprintbot
+spec:
+  rules:
+    - host: bot.sprintbot.io
+      http:
+        paths:
+          - backend:
+              serviceName: sprintbot
+              servicePort: 80
+            path: /
+    - host: bot.sprintbot.io
+      http:
+        paths:
+          - backend:
+              serviceName: sprintbot
+              servicePort: 80
+            path: /
+  tls:
+    - hosts:
+        - bot.sprintbot.io
+      secretName: bot-sprintbot-tls
+
+---
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Issuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: craig@sprintbot.io
+    http01: {}
+    privateKeySecretRef:
+      key: ""
+      name: letsencrypt-prod
+    server: https://acme-v02.api.letsencrypt.org/directory
+
+
