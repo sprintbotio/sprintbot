@@ -21,7 +21,6 @@ func NewUserRepository(db *bolt.DB)*UserRepository  {
 func (ur *UserRepository)AddUser(u *domain.User)(string, error){
 	 err := ur.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(usersBucket)
-		u.ID = u.Team+u.Name
 		data, err := json.Marshal(u)
 		if err != nil{
 			return errors.Wrap(err, "failed to parse user")

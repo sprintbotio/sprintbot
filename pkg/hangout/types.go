@@ -56,3 +56,10 @@ type Annotation struct {
 		} `json:"user"`
 	} `json:"userMention"`
 }
+
+type command struct{
+	actionType string
+	name string
+	argsText string
+	space string
+}
