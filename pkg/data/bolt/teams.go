@@ -54,3 +54,9 @@ func (tr *TeamRepository)Update(t *domain.Team)error  {
 		return tx.Bucket([]byte(teamsBucket)).Put([]byte(t.ID),data)
 	})
 }
+
+func (tr *TeamRepository)Delete(id string)error  {
+	return tr.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(teamsBucket).Delete([]byte(id))
+	})
+}

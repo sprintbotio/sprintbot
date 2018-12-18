@@ -15,24 +15,23 @@ func NewService(ur UserRepo, teamRepo TeamRepo) *Service  {
 	return &Service{userRepo:ur, teamRepo:teamRepo}
 }
 
-func (ad *Service)id(u domain.User)(string,error)  {
-	if u.Name == ""{
-		return "", errors.New("no username present")
-	}
-	if u.Team == ""{
-		return "", errors.New("no team present")
-	}
-	return u.Team+u.Name, nil
+
+func (ad *Service)RemoveTeam(id string)error  {
+	return ad.teamRepo.Delete(id)
 }
 
-func (ad *Service)RegisterAdmin(adminName, space string )(string,error)  {
+func (ad *Service)IsUserAdminForTeam(userID, teamName string)(bool,error)  {
+	u, err := ad.userRepo.GetUser(userID)
+	if err != nil{
+		return false, err
+	}
+	return u.Team == teamName && u.Admin == true, nil
+}
+
+func (ad *Service)RegisterAdmin(adminName, uid, space string )(string,error)  {
 	admin := domain.User{Admin:true}
 	admin.Name = adminName
 	admin.Team = space
-	uid, err := ad.id(admin)
-	if err != nil{
-		return "", err
-	}
 	admin.ID = uid
 	id, err := ad.userRepo.AddUser(&admin)
 	if err != nil{
@@ -72,7 +71,7 @@ func (ad *Service)PopulateTeam(id string)(*domain.Team, error)  {
 	return t, nil
 }
 
-func (ad *Service)AddUserToTeam(name, teamid string)error  {
+func (ad *Service)AddUserToTeam(name, uid, teamid string)error  {
 	t, err := ad.teamRepo.GetTeam(teamid)
 	if err != nil{
 		return err
@@ -80,10 +79,6 @@ func (ad *Service)AddUserToTeam(name, teamid string)error  {
 	u := domain.User{Admin:false}
 	u.Name = name
 	u.Team = teamid
-	uid, err := ad.id(u)
-	if err != nil{
-		return err
-	}
 	u.ID = uid
 	id, err := ad.userRepo.AddUser(&u)
 	if err != nil{
@@ -93,20 +88,15 @@ func (ad *Service)AddUserToTeam(name, teamid string)error  {
 	return ad.teamRepo.Update(t)
 }
 
-func (ad *Service)RemoveUserFromTeam(userName , teamID string)error{
+func (ad *Service)RemoveUserFromTeam(uid , teamID string)error{
 	team,err := ad.teamRepo.GetTeam(teamID)
-	if err != nil{
-		return err
-	}
-	user := domain.User{ Name:userName,Team:teamID}
-	userID, err := ad.id(user)
 	if err != nil{
 		return err
 	}
 	var userIndex = -1
 	for i, u := range team.Members{
-		logrus.Info("removing user", userID, u)
-		if u == userID{
+		logrus.Info("removing user", uid, u)
+		if u == uid{
 			userIndex = i
 			break
 		}
@@ -120,15 +110,27 @@ func (ad *Service)RemoveUserFromTeam(userName , teamID string)error{
 	return ad.teamRepo.Update(team)
 }
 
+func (ad *Service)GetTeamForUser(userID string)(*domain.Team, error){
+	u, err := ad.userRepo.GetUser(userID)
+	if err != nil{
+		return nil,err
+	}
+	t, err := ad.teamRepo.GetTeam(u.Team)
+	if err != nil{
+		return  nil,err
+	}
+	return t , nil
+}
 
 
-func (ad *Service)IsUserInTeam(name, teamID string)(bool, error)  {
-	team, err := ad.PopulateTeam(teamID)
+
+func (ad *Service)IsUserInTeam(uid, teamID string)(bool, error)  {
+	team, err := ad.teamRepo.GetTeam(teamID)
 	if err != nil{
 		return false, err
 	}
 	for _, u := range team.Members{
-		if name == u{
+		if uid == u{
 			return true, nil
 		}
 	}

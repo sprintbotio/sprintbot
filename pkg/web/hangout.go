@@ -25,16 +25,8 @@ func (hh *HangoutHandler)Message(rw http.ResponseWriter, req *http.Request)  {
 		return
 
 	}
-	response, err := hh.chatActionHandler.Handle(&message)
-	if err != nil{
-		if chat.IsUnkownCommandErr(err) || chat.IsMissingArgsErr(err){
-			response = err.Error()
-		}else {
-			logrus.Error("failed to handle chat action ", err)
-			http.Error(rw, "failed to handle chat action", http.StatusInternalServerError)
-			return
-		}
-	}
+	response := hh.chatActionHandler.Handle(&message)
+
 	if _,err := rw.Write([]byte(`{"text":"`+response+`"}`)); err != nil{
 		logrus.Error("failed to write response ", err)
 		http.Error(rw, "failed to handle chat action", http.StatusInternalServerError)

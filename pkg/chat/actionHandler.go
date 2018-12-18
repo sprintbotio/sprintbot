@@ -14,13 +14,13 @@ func NewActionHandler()*ActionHandler{
 }
 
 
-func (ah *ActionHandler)Handle(m Message)(string,error){
+func (ah *ActionHandler)Handle(m Message)string{
 	switch m.Platform() {
 	case "hangout":
 		return ah.handlers["hangout"].Handle(m)
 
 	}
-	return "", nil
+	return ""
 }
 
 
@@ -28,7 +28,7 @@ func (ah *ActionHandler)Handle(m Message)(string,error){
 
 
 type Handler interface {
-	Handle(m Message)(string,error)
+	Handle(m Message)string
 	Platform()string
 }
 

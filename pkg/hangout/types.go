@@ -1,6 +1,9 @@
 package hangout
 
-import "time"
+import (
+	"github.com/sprintbot.io/sprintbot/pkg/domain"
+	"time"
+)
 
 type Event struct {
 	Type      string    `json:"type"`
@@ -62,4 +65,5 @@ type command struct{
 	name string
 	argsText string
 	space string
+	team *domain.Team
 }

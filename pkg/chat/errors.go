@@ -31,3 +31,16 @@ func IsMissingArgsErr(err error)  bool {
 	_, ok := err.(*MissingArgs)
 	return ok
 }
+
+type PublishableError struct {
+	Message string
+}
+
+func (pe PublishableError)Error()string  {
+	return pe.Message
+}
+
+func IsPublishableErr(err error)  bool  {
+	_, ok := err.(PublishableError)
+	return ok
+}

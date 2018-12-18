@@ -13,4 +13,5 @@ type TeamRepo interface {
 	AddTeam(team domain.Team)(string,error)
 	GetTeam(id string)(*domain.Team, error )
 	Update(t *domain.Team)error
+	Delete(id string)error
 }
