@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sprintbot.io/sprintbot/pkg/chat"
 	"github.com/sprintbot.io/sprintbot/pkg/team"
+	"github.com/sprintbot.io/sprintbot/pkg/user"
 	"reflect"
 	"regexp"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 type ActionHandler struct {
   teamService *team.Service
+  userService *user.Service
 }
 
 
@@ -19,15 +21,9 @@ const(
 	unexpectedERRRESPONSE = `sorry I was unable to %s. Please try again later`
 )
 
-var (
-	addToTeamRegexp = regexp.MustCompile(`^add.*to (the\s)?team.*`)
-	viewTeamRegexp = regexp.MustCompile(`^(view|show)?(\s\w+)?(\s\w+)?\steam.*`)
-	removeFromTeamRegexp = regexp.MustCompile(`^remove.*from team.*`)
-	makeUsersAdmins = regexp.MustCompile(`^make.*admin(s)?`)
-)
 
-func NewActionHandler(ts *team.Service)*ActionHandler  {
-	return &ActionHandler{teamService: ts}
+func NewActionHandler(ts *team.Service, us *user.Service)*ActionHandler  {
+	return &ActionHandler{teamService: ts, userService:us}
 }
 
 func (ah *ActionHandler)Handle(m chat.Message) string {
@@ -42,7 +38,7 @@ func (ah *ActionHandler)Handle(m chat.Message) string {
 		logrus.Errorf("failed when trying to find team user a member of ",err, reflect.TypeOf(err))
 		//return fmt.Sprintf(unexpectedERRRESPONSE, "complete the action")
 	}
-	logrus.Info("got new event ", message.Type, message.User, message.Message.Annotations)
+	logrus.Info("got new event ", message.Type, "space: ",  message.Space, message.User, message.Message.Annotations, message.Message.Thread.Name)
 	if message.Type == "ADDED_TO_SPACE" && t == nil{
 		resp, err :=  ah.handleRegister(message)
 		if err != nil{
@@ -89,22 +85,28 @@ func (ah *ActionHandler)cleanText(argumentText string)string{
 }
 
 func (ah *ActionHandler)parseCommand(argumentText string)(command,error)  {
-	cmd := command{argsText:argumentText}
-	if addToTeamRegexp.MatchString(argumentText){
+	cmd := command{}
+	if chat.AddToTeamRegexp.MatchString(argumentText){
 			cmd.name = cmdAddUsersToTeam
 			cmd.actionType = "admin"
 	}
-	if viewTeamRegexp.MatchString(argumentText){
+	if chat.ViewTeamRegexp.MatchString(argumentText){
 		cmd.name = cmdViewTeam
 		cmd.actionType = "admin"
 	}
-	if removeFromTeamRegexp.MatchString(argumentText){
+	if chat.RemoveFromTeamRegexp.MatchString(argumentText){
 		cmd.name = cmdRemoveUserFromTeam
 		cmd.actionType = "admin"
 	}
-	if makeUsersAdmins.MatchString(argumentText){
+	if chat.MakeUsersAdmins.MatchString(argumentText){
 		cmd.name = cmdMakeUserAdmin
 		cmd.actionType = "admin"
+	}
+	if chat.SetUserTimeZone.MatchString(argumentText){
+		cmd.name = cmdSetUserTimeZone
+		cmd.actionType = "admin"
+		m := chat.SetUserTimeZone.FindStringSubmatch(argumentText)
+		cmd.args = []string{strings.TrimSpace(m[1])}
 	}
 	if cmd.name == ""{
 		return cmd, chat.NewUknownCommand(argumentText)

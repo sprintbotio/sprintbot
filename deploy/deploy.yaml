@@ -26,9 +26,14 @@ spec:
       - image: quay.io/sprintbot/sprintbot:dev
         imagePullPolicy: Always
         name: sprintbot
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/data/auth/gchat.json"
         volumeMounts:
           - mountPath: "/data/bolt"
             name: bolt-storage
+          - mountPath: "/data/auth"
+            name: gchat-auth
         command:
           - /usr/local/bin/sprintbot
           - --db-loc=/data/bolt/db
@@ -46,6 +51,9 @@ spec:
         - name: bolt-storage
           persistentVolumeClaim:
             claimName: sprintbot
+        - name: gchat-auth
+          secret:
+            secretName: gchat-auth
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler

@@ -7,7 +7,7 @@ import (
 func (ah *ActionHandler )handleRegister(m *Event) (string,error) {
 	logrus.Info("register ", m.Space, m.User.Name, m.User.DisplayName, m.User.Email)
 	// check if this user is in a team as this could be the first direct message
-	id, err := ah.teamService.RegisterAdmin(m.User.DisplayName,m.User.Name,m.Space.Name)
+	id, err := ah.userService.RegisterAdmin(m.User.DisplayName,m.User.Name,m.Space.Name)
 	if err != nil{
 		logrus.Error("failed to register admin ", err)
 		return "I was unable to register you", err

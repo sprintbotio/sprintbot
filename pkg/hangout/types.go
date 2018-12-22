@@ -63,7 +63,7 @@ type Annotation struct {
 type command struct{
 	actionType string
 	name string
-	argsText string
+	args []string
 	space string
 	team *domain.Team
 }

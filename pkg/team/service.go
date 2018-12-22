@@ -7,11 +7,11 @@ import (
 )
 
 type Service struct {
-	userRepo UserRepo
-	teamRepo TeamRepo
+	userRepo domain.UserRepo
+	teamRepo domain.TeamRepo
 }
 
-func NewService(ur UserRepo, teamRepo TeamRepo) *Service  {
+func NewService(ur domain.UserRepo, teamRepo domain.TeamRepo) *Service  {
 	return &Service{userRepo:ur, teamRepo:teamRepo}
 }
 
@@ -28,17 +28,6 @@ func (ad *Service)IsUserAdminForTeam(userID, teamName string)(bool,error)  {
 	return u.Team == teamName && u.Admin == true, nil
 }
 
-func (ad *Service)RegisterAdmin(adminName, uid, space string )(string,error)  {
-	admin := domain.User{Admin:true}
-	admin.Name = adminName
-	admin.Team = space
-	admin.ID = uid
-	id, err := ad.userRepo.AddUser(&admin)
-	if err != nil{
-		return "", errors.Wrap(err, "failed to register admin")
-	}
-	return id, nil
-}
 
 func (ad *Service)RegisterTeam(team, room, owner string)(string,error) {
 	t := domain.Team{
@@ -60,14 +49,17 @@ func (ad *Service)PopulateTeam(id string)(*domain.Team, error)  {
 		return nil, err
 	}
 	userNames := []string{}
+	users := []*domain.User{}
 	for _, m := range t.Members{
 		u, err := ad.userRepo.GetUser(m)
 		if err != nil{
 			return nil, err
 		}
 		userNames = append(userNames, u.Name)
+		users = append(users, u)
 	}
 	t.Members = userNames
+	t.Users = users
 	return t, nil
 }
 

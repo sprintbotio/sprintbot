@@ -2,7 +2,6 @@ package bolt
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/sprintbot.io/sprintbot/pkg/domain"
 	"go.etcd.io/bbolt"
@@ -25,7 +24,6 @@ func (ur *UserRepository)AddUser(u *domain.User)(string, error){
 		if err != nil{
 			return errors.Wrap(err, "failed to parse user")
 		}
-		fmt.Println("key ", u.ID)
 		return b.Put([]byte(u.ID),data)
 	 })
 	return u.ID, err
@@ -44,4 +42,18 @@ func (ur *UserRepository)GetUser(id string)(*domain.User, error )  {
 		return nil
 	})
 	return &u, err
+}
+
+func (ur *UserRepository)Update(u *domain.User)error  {
+	if u.ID == ""{
+		return errors.New("cannot update user with no id")
+	}
+	err := ur.db.Update(func(tx *bolt.Tx) error {
+		data, err := json.Marshal(u)
+		if err != nil{
+			return errors.Wrap(err, "failed to parse user")
+		}
+		return tx.Bucket(usersBucket).Put([]byte(u.ID),data)
+	})
+	return err
 }

@@ -1,5 +1,6 @@
 package chat
 
+import "regexp"
 
 type ActionHandler struct {
 	handlers map[string]Handler
@@ -25,8 +26,6 @@ func (ah *ActionHandler)Handle(m Message)string{
 
 
 
-
-
 type Handler interface {
 	Handle(m Message)string
 	Platform()string
@@ -35,3 +34,12 @@ type Handler interface {
 type Message interface {
 	Platform()string
 }
+
+
+var (
+	AddToTeamRegexp = regexp.MustCompile(`^add.*to (the\s)?team.*`)
+	ViewTeamRegexp = regexp.MustCompile(`^(view|show)?(\s\w+)?(\s\w+)?\steam.*`)
+	RemoveFromTeamRegexp = regexp.MustCompile(`^remove.*from team.*`)
+	MakeUsersAdmins = regexp.MustCompile(`^make.*admin(s)?`)
+	SetUserTimeZone = regexp.MustCompile(`^set timezone.*\s(?P<zone>\w+\/\w+\/?\w+)`)
+)

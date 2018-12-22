@@ -12,6 +12,7 @@ const (
 	cmdRemoveUserFromTeam = "remove-user-from-team"
 	cmdMakeUserAdmin = "make-user-admin"
 	cmdUnMakeUserAdmin ="remove-admin"
+	cmdSetUserTimeZone = "set-user-timezone"
 )
 
 func userUserIDAndTeamFromEvent(m *Event)(string,string,string){
@@ -37,6 +38,8 @@ func (ah *ActionHandler)handleAdmin(c command, m *Event)(string,error)  {
 		return ah.adminViewTeam(c.team.ID)
 	case cmdRemoveUserFromTeam:
 		return ah.adminRemoveUserFromTeam(c,m)
+	case cmdSetUserTimeZone:
+		return ah.adminSetUserTimezone(c,m)
 	}
 
 	return ah.adminHelp(), nil
@@ -48,6 +51,22 @@ func (ah *ActionHandler)adminHelp()string{
 `+"```@sprintbot make <user1>,<user2> admins```"+`
 `+"```@sprintbot view team```"+`
 `
+}
+
+func (ah *ActionHandler)adminSetUserTimezone(cmd command, m *Event)(string,error)  {
+	//ah.userService.UpdateTZ()
+	updated := []string{}
+	for _, a := range m.Message.Annotations {
+		if a != nil && (a.UserMention.User.DisplayName != "sprintbot" && a.UserMention.User.DisplayName != "") {
+			userToAdd := a.UserMention.User.DisplayName
+			userID := a.UserMention.User.Name
+			if err := ah.userService.UpdateTZ(userID,cmd.args[0]); err != nil{
+				return "",err
+			}
+			updated = append(updated, userToAdd)
+		}
+	}
+	return `updated timezone to ` + cmd.args[0] + ` for `+ strings.Join(updated, " , "), nil
 }
 
 func (ah *ActionHandler)adminAddUsersToTeam(cmd command, m *Event)(string, error) {
@@ -73,7 +92,9 @@ func (ah *ActionHandler)adminAddUsersToTeam(cmd command, m *Event)(string, error
 		}
 	}
 
-	return "Added "+ strings.Join(added," : ") + " to team: " + m.Space.DisplayName, nil
+	return "Added "+ strings.Join(added," : ") + " to team: " + m.Space.DisplayName + " \n" +
+		"update this users timzone using ```set timezone @user Europe/Dublin ``` \n" +
+		"For a full list of timezones visit https://timezonedb.com/time-zones", nil
 }
 
 func (ah *ActionHandler)adminRemoveUserFromTeam(cmd command, m *Event)(string,error)  {
@@ -104,6 +125,9 @@ func (ah *ActionHandler)adminViewTeam(team string)(string, error)  {
 	if err != nil{
 		return "", errors.Wrap(err,"failed to get the team")
 	}
-	return `| `+t.Name+` |
-`+strings.Join(t.Members,"\n")+``, nil
+	var teamView = `|`+t.Name+`|\n`
+	for _, u := range t.Users{
+		teamView+= u.Name + ` ` + u.Timezone.Name + `\n`
+	}
+	return teamView, nil
 }

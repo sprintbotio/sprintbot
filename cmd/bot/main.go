@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"github.com/sirupsen/logrus"
 	"github.com/sprintbot.io/sprintbot/pkg/chat"
 	"github.com/sprintbot.io/sprintbot/pkg/data/bolt"
 	"github.com/sprintbot.io/sprintbot/pkg/hangout"
 	"github.com/sprintbot.io/sprintbot/pkg/team"
+	"github.com/sprintbot.io/sprintbot/pkg/user"
 	"github.com/sprintbot.io/sprintbot/pkg/web"
+	"golang.org/x/oauth2/google"
+	gchat "google.golang.org/api/chat/v1"
 	"net/http"
 )
 
@@ -47,6 +51,22 @@ func main() {
 	}
 
 
+	// hangout background jobs
+	{
+		gClient, err := google.DefaultClient(context.TODO(),"https://www.googleapis.com/auth/chat.bot")
+		if err != nil{
+			panic(err)
+		}
+		Gservice,err := gchat.New(gClient)
+		if err != nil{
+			panic(err)
+		}
+		spacesService := gchat.NewSpacesService(Gservice)
+		hangoutService := hangout.NewService(spacesService)
+		hangoutService.MonitorInBackground(context.TODO())
+	}
+
+
 	router := web.BuildRouter()
 	logger := logrus.StandardLogger()
 	httpHandler := web.BuildHTTPHandler(router)
@@ -55,6 +75,7 @@ func main() {
 	teamRepo := bolt.NewTeamRespository(db)
 	chatActionHandler := chat.NewActionHandler()
 	teamService := team.NewService(userRepo, teamRepo)
+	userService := user.NewService(userRepo)
 
 	//sys
 	{
@@ -63,7 +84,7 @@ func main() {
 
 	// hangouts
 	{
-		hangoutChatHandler := hangout.NewActionHandler(teamService)
+		hangoutChatHandler := hangout.NewActionHandler(teamService,userService)
 		chatActionHandler.RegisterHandler(hangoutChatHandler)
 		handler := web.NewHangoutHandler(chatActionHandler)
 		web.MountHangoutHandler(router,handler)

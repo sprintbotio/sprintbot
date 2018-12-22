@@ -28,6 +28,7 @@ func Disconnect()  {
 var(
 	usersBucket = []byte("users")
 	teamsBucket = []byte("teams")
+	timeZoneBucket = []byte("timezones")
 )
 
 func Setup()error  {

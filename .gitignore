@@ -1,2 +1,4 @@
 .env
 .idea/
+.keys/
+build/sprintbot
