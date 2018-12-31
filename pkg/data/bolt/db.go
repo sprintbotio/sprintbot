@@ -26,9 +26,16 @@ func Disconnect()  {
 }
 
 var(
-	usersBucket = []byte("users")
 	teamsBucket = []byte("teams")
-	timeZoneBucket = []byte("timezones")
+	usersBucket  = []byte("users")
+	standupSchedule = []byte("standup_schedule")
+	standupLogs = []byte("standup_logs")
+	buckets = [][]byte{
+		usersBucket,
+		teamsBucket,
+		standupSchedule,
+		standupLogs,
+	}
 )
 
 func Setup()error  {
@@ -36,12 +43,12 @@ func Setup()error  {
 		return errors.New("no db connection could not complete setup")
 	}
 	return db.Update(func(tx *bolt.Tx) error {
-		if _, err := tx.CreateBucketIfNotExists(usersBucket); err != nil{
-			return errors.Wrap(err, "failed to create user bucket")
+		for _, b := range buckets{
+			if _, err := tx.CreateBucketIfNotExists(b); err != nil{
+				return errors.Wrap(err, "failed to create "+string(b)+" bucket")
+			}
 		}
-		if _, err := tx.CreateBucketIfNotExists(teamsBucket); err != nil{
-			return errors.Wrap(err, "failed to create teams bucket")
-		}
+
 		return nil
 	})
 }

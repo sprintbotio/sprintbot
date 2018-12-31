@@ -67,3 +67,15 @@ type command struct{
 	space string
 	team *domain.Team
 }
+
+func (c command)NoEmptyArgs()bool  {
+	if len(c.args) == 0{
+		return true
+	}
+	for _,v := range c.args{
+		if v == ""{
+			return false
+		}
+	}
+	return true
+}

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
+
 	"github.com/sirupsen/logrus"
 	"github.com/sprintbot.io/sprintbot/pkg/chat"
 	"github.com/sprintbot.io/sprintbot/pkg/data/bolt"
@@ -12,12 +14,11 @@ import (
 	"github.com/sprintbot.io/sprintbot/pkg/web"
 	"golang.org/x/oauth2/google"
 	gchat "google.golang.org/api/chat/v1"
-	"net/http"
 )
 
 var (
 	logLevel string
-	dbLoc string
+	dbLoc    string
 )
 
 func main() {
@@ -41,31 +42,27 @@ func main() {
 	logrus.SetLevel(logrus.InfoLevel)
 
 	db, err := bolt.Connect(dbLoc)
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	defer bolt.Disconnect()
 
-	if err := bolt.Setup(); err != nil{
+	if err := bolt.Setup(); err != nil {
 		panic(err)
 	}
 
+	// hangout client
 
-	// hangout background jobs
-	{
-		gClient, err := google.DefaultClient(context.TODO(),"https://www.googleapis.com/auth/chat.bot")
-		if err != nil{
-			panic(err)
-		}
-		Gservice,err := gchat.New(gClient)
-		if err != nil{
-			panic(err)
-		}
-		spacesService := gchat.NewSpacesService(Gservice)
-		hangoutService := hangout.NewService(spacesService)
-		hangoutService.MonitorInBackground(context.TODO())
+	gClient, err := google.DefaultClient(context.TODO(), "https://www.googleapis.com/auth/chat.bot")
+	if err != nil {
+		panic(err)
 	}
-
+	Gservice, err := gchat.New(gClient)
+	if err != nil {
+		panic(err)
+	}
+	spacesService := gchat.NewSpacesService(Gservice)
+	hangoutService := hangout.NewService(spacesService)
 
 	router := web.BuildRouter()
 	logger := logrus.StandardLogger()
@@ -73,9 +70,13 @@ func main() {
 
 	userRepo := bolt.NewUserRepository(db)
 	teamRepo := bolt.NewTeamRespository(db)
+	scheduleRepo := bolt.NewStandUpRepository(db)
 	chatActionHandler := chat.NewActionHandler()
 	teamService := team.NewService(userRepo, teamRepo)
 	userService := user.NewService(userRepo)
+	hangoutStandup := hangout.NewStandUpRunnder(hangoutService, teamService)
+	standupService := team.NewStandUpService(teamRepo, scheduleRepo, hangoutStandup)
+	go standupService.Schedule(context.TODO())
 
 	//sys
 	{
@@ -84,10 +85,10 @@ func main() {
 
 	// hangouts
 	{
-		hangoutChatHandler := hangout.NewActionHandler(teamService,userService)
+		hangoutChatHandler := hangout.NewActionHandler(teamService, userService, standupService)
 		chatActionHandler.RegisterHandler(hangoutChatHandler)
 		handler := web.NewHangoutHandler(chatActionHandler)
-		web.MountHangoutHandler(router,handler)
+		web.MountHangoutHandler(router, handler)
 	}
 
 	logger.Println("starting api on 8080")
