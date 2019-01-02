@@ -16,6 +16,7 @@ const (
 	cmdUnMakeUserAdmin    = "remove-admin"
 	cmdSetUserTimeZone    = "set-user-timezone"
 	cmdScheduleStandUp    = "schedule-standup"
+	cmdStandUpLog         = "standup-log"
 )
 
 func userUserIDAndTeamFromEvent(m *Event) (string, string, string) {

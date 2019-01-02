@@ -39,4 +39,5 @@ var (
 	MakeUsersAdmins      = regexp.MustCompile(`^make.*admin(s)?`)
 	SetUserTimeZone      = regexp.MustCompile(`^set timezone.*\s(?P<zone>\w+\/\w+\/?\w+)`)
 	ScheduleStandUp      = regexp.MustCompile(`^schedule standup\s?(for|at)?\s?(\d\d)?:?(\d\d)?\s?(\w+\/\w+)?`)
+	StandUpLog           = regexp.MustCompile(`^standup log$`)
 )

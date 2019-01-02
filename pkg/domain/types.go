@@ -6,6 +6,7 @@ type User struct {
 	Name     string
 	ID       string
 	Team     string
+	Role     string // admin | member | observer
 	Timezone struct {
 		UTCOffset int
 		Name      string
@@ -52,8 +53,9 @@ func NewStandUP(teamID string) *StandUp {
 }
 
 type StandUpMsg struct {
-	UserID string
-	Msg    string
+	UserID   string
+	UserName string
+	Msg      string
 }
 
 type StandUpLog struct {
@@ -64,6 +66,7 @@ type StandUpLog struct {
 
 type StandUpRepo interface {
 	SaveUpdate(s *StandUp) error
+	Get(sid string) (*StandUp, error)
 }
 
 //go:generate moq -out userRepo_mock_test.go . UserRepo

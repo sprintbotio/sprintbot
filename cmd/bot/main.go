@@ -70,12 +70,13 @@ func main() {
 
 	userRepo := bolt.NewUserRepository(db)
 	teamRepo := bolt.NewTeamRespository(db)
+	standUpRepo := bolt.NewStandUpRepo(db)
 	scheduleRepo := bolt.NewStandUpRepository(db)
 	chatActionHandler := chat.NewActionHandler()
 	teamService := team.NewService(userRepo, teamRepo)
 	userService := user.NewService(userRepo)
-	hangoutStandup := hangout.NewStandUpRunnder(hangoutService, teamService)
-	standupService := team.NewStandUpService(teamRepo, scheduleRepo, hangoutStandup)
+	hangoutStandup := hangout.NewStandUpRunner(hangoutService, teamService, standUpRepo)
+	standupService := team.NewStandUpService(teamRepo, scheduleRepo, hangoutStandup, standUpRepo)
 	go standupService.Schedule(context.TODO())
 
 	//sys

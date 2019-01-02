@@ -13,12 +13,12 @@ import (
 type StandUpService struct {
 	ts            domain.TeamRepo
 	sr            domain.ScheduleRepo
-	sl            domain.ScheduleRepo
+	sl            domain.StandUpRepo
 	standUpRunner StandUpRunner
 }
 
-func NewStandUpService(ts domain.TeamRepo, sr domain.ScheduleRepo, srun StandUpRunner) *StandUpService {
-	return &StandUpService{ts: ts, sr: sr, standUpRunner: srun}
+func NewStandUpService(ts domain.TeamRepo, sr domain.ScheduleRepo, srun StandUpRunner, sRepo domain.StandUpRepo) *StandUpService {
+	return &StandUpService{ts: ts, sr: sr, standUpRunner: srun, sl: sRepo}
 }
 
 type RepeatSchedule uint8
@@ -52,7 +52,6 @@ func (ss *StandUpService) Schedule(ctx context.Context) {
 	for {
 		select {
 		case <-tick.C:
-			logrus.Info("checking stand up schedule")
 			schedules, err := ss.sr.List()
 			if err != nil {
 				logrus.Error("failed to check standups ", err)
@@ -72,7 +71,7 @@ func (ss *StandUpService) Schedule(ctx context.Context) {
 						<-c
 						standUpChan := make(chan domain.StandUpMsg)
 						standUpMsgs[teamID] = standUpChan
-						ss.standUpRunner.Run(teamID, standUpChan)
+						ss.standUpRunner.Run(teamID, s.TimeZone, standUpChan)
 						defer close(standUpChan)
 					}(s.TeamID)
 				}
@@ -87,18 +86,18 @@ func (ss *StandUpService) IsStandUpInProgress(teamID string) bool {
 	return ss.standUpRunner.InProgress(teamID)
 }
 
-func (ss *StandUpService) LogStandUpMessage(teamID, userID, msg string) error {
+func (ss *StandUpService) LogStandUpMessage(teamID, userID, userName, msg string) error {
 	standUpChan := standUpMsgs[teamID]
 	if nil == standUpChan {
 		return errors.New("failed to log stand up message\n")
 	}
 	// this can block if nothing is reading from it
-	standUpChan <- domain.StandUpMsg{Msg: msg, UserID: userID}
+	standUpChan <- domain.StandUpMsg{Msg: msg, UserID: userID, UserName: userName}
 	return nil
 }
 
 func (ss *StandUpService) shouldRunStandUp(s *domain.StandupSchedule) (bool, error) {
-	logrus.Info("should run standup? ", s.TimeZone, s.Hour, s.Min)
+	logrus.Debug("should run standup? ", s.TimeZone, s.Hour, s.Min)
 	l, err := time.LoadLocation(s.TimeZone)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to check time for standup ")
@@ -107,8 +106,17 @@ func (ss *StandUpService) shouldRunStandUp(s *domain.StandupSchedule) (bool, err
 	// we only care about to the minute time
 	minuteTime := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, l)
 	standup := time.Date(t.Year(), t.Month(), t.Day(), int(s.Hour), int(s.Min), 0.0, 0, l)
-	logrus.Info("checking time for standup ", t.Unix(), "standup time ", standup.Unix(), t, standup, minuteTime.Unix() == standup.Unix())
+	logrus.Debug("checking time for standup ", t.Unix(), "standup time ", standup.Unix(), t, standup, minuteTime.Unix() == standup.Unix())
 	return minuteTime.Unix() == standup.Unix(), nil
+}
+
+func (ss *StandUpService) LoadStandUp(teamID string, time time.Time) (*domain.StandUp, error) {
+	standUpID := fmt.Sprintf("%s-%d-%02d-%02d", teamID, time.Year(), time.Month(), time.Day())
+	standUp, err := ss.sl.Get(standUpID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load stand up logs")
+	}
+	return standUp, nil
 }
 
 type ChatInterface interface {
@@ -117,6 +125,6 @@ type ChatInterface interface {
 
 type StandUpRunner interface {
 	Announce(teamID string, minutesBefore time.Duration)
-	Run(teamID string, msgChan chan domain.StandUpMsg)
+	Run(teamID, tz string, msgChan chan domain.StandUpMsg)
 	InProgress(teamID string) bool
 }

@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/sprintbot.io/sprintbot/pkg/domain"
+
 	"github.com/sirupsen/logrus"
 	"github.com/sprintbot.io/sprintbot/pkg/chat"
 	"github.com/sprintbot.io/sprintbot/pkg/team"
@@ -32,14 +34,23 @@ func (ah *ActionHandler) Handle(m chat.Message) string {
 		logrus.Error("the chat message passed to the google chat handler was not an Event it was ", reflect.TypeOf(m))
 		return fmt.Sprintf(unexpectedERRRESPONSE, "complete your requested action")
 	}
+	//TODO abstract out team resolution
+	var (
+		team *domain.Team
+		err  error
+	)
 	// look for user and set team
-	t, err := ah.teamService.GetTeamForUser(message.User.Name)
-	if err != nil {
-		logrus.Errorf("failed when trying to find team user a member of ", err, reflect.TypeOf(err))
-		//return fmt.Sprintf(unexpectedERRRESPONSE, "complete the action")
+	team, err = ah.teamService.GetTeamForUser(message.User.Name)
+	if err != nil && domain.IsNotFoundErr(err) {
+		// assume observer and resolve team be space name
+		team, err = ah.teamService.PopulateTeam(message.Space.Name)
+		if err != nil {
+			logrus.Errorf("failed when trying to find team user a member of ", err, reflect.TypeOf(err))
+		}
 	}
-	logrus.Info("got new event ", message.Type, "space: ", message.Space, message.User, message.Message.Annotations, message.Message.Thread.Name)
-	if message.Type == "ADDED_TO_SPACE" && t == nil {
+
+	logrus.Debug("got new event ", message.Type, "space: ", message.Space, message.User, message.Message.Annotations, message.Message.Thread.Name)
+	if message.Type == "ADDED_TO_SPACE" && team == nil {
 		resp, err := ah.handleRegister(message)
 		if err != nil {
 			logrus.Errorf("failed to register new bot for gChat %+v", err)
@@ -47,9 +58,14 @@ func (ah *ActionHandler) Handle(m chat.Message) string {
 		}
 		return resp
 	}
-	if message.Type == "REMOVED_FROM_SPACE" && t != nil {
-		if err := ah.teamService.RemoveTeam(t.ID); err != nil {
-			logrus.Errorf("failed to remove team %s %+v", t.ID, err)
+	// all other events should have a team associated
+	if team == nil && err != nil {
+		logrus.Errorf("unexpected error getting a team for user", err)
+		return "I could not locate a team for you."
+	}
+	if message.Type == "REMOVED_FROM_SPACE" && team != nil {
+		if err := ah.teamService.RemoveTeam(team.ID); err != nil {
+			logrus.Errorf("failed to remove team %s %+v", team.ID, err)
 			return ""
 		}
 		return ""
@@ -57,26 +73,20 @@ func (ah *ActionHandler) Handle(m chat.Message) string {
 	if message.Type == "MESSAGE" {
 		cleanCmd := ah.cleanText(message.Message.ArgumentText)
 		cmd, err := ah.parseCommand(cleanCmd)
-
 		if err != nil {
-			logrus.Info("cmd err ", err)
-			if _, ok := err.(*chat.UnkownCommand); ok && ah.standUpService.IsStandUpInProgress(t.ID) {
+			if _, ok := err.(*chat.UnkownCommand); ok && ah.standUpService.IsStandUpInProgress(team.ID) {
 				logrus.Info("stand up is in progress so logging standup message ", message.Message.Text)
 				// this is a but of hack but when a standup is in progress anything could be sent to the bot so any unknown command errors are treated as standup messages
-				if err := ah.standUpService.LogStandUpMessage(t.ID, message.User.Name, message.Message.ArgumentText); err != nil {
+				if err := ah.standUpService.LogStandUpMessage(team.ID, message.User.Name, message.User.DisplayName, message.Message.ArgumentText); err != nil {
 					logrus.Errorf("failed to log stand up message ", err)
 					return "Unable to log the stand up status"
 				}
 				return ""
 			}
-
 			logrus.Errorf("error parsing command in google chat message %+v", err)
 			return fmt.Sprintf(unexpectedERRRESPONSE, "complete your requested action")
-
 		}
-		if t != nil {
-			cmd.team = t
-		}
+		cmd.team = team
 		switch cmd.actionType {
 		case "admin":
 			resp, err := ah.handleAdmin(cmd, message)
@@ -85,6 +95,14 @@ func (ah *ActionHandler) Handle(m chat.Message) string {
 				return fmt.Sprintf(unexpectedERRRESPONSE, "complete your "+cmd.name+" action")
 			}
 			return resp
+		case "general":
+			resp, err := ah.handleGeneral(cmd, message)
+			if err != nil {
+				logrus.Errorf("failed to handle general action %s %+v", cmd.name, err)
+				return fmt.Sprintf(unexpectedERRRESPONSE, "complete your "+cmd.name+" action")
+			}
+			return resp
+
 		}
 	}
 	return fmt.Sprintf("sorry I do not understand. Try @sprintbot help")
@@ -128,6 +146,10 @@ func (ah *ActionHandler) parseCommand(argumentText string) (command, error) {
 		fmt.Println("substr match ", m[1:], m, len(m))
 
 		cmd.args = m[1:]
+	}
+	if chat.StandUpLog.MatchString(argumentText) {
+		cmd.name = cmdStandUpLog
+		cmd.actionType = "general"
 	}
 	if cmd.name == "" {
 		return cmd, chat.NewUknownCommand(argumentText)
