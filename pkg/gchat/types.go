@@ -1,8 +1,9 @@
-package hangout
+package gchat
 
 import (
-	"github.com/sprintbot.io/sprintbot/pkg/domain"
 	"time"
+
+	"github.com/sprintbot.io/sprintbot/pkg/domain"
 )
 
 type Event struct {
@@ -14,7 +15,7 @@ type Event struct {
 		Type        string `json:"type"`
 	} `json:"space"`
 	Message Message `json:"message"`
-	User User `json:"user"`
+	User    User    `json:"user"`
 }
 
 type Message struct {
@@ -34,7 +35,7 @@ type Message struct {
 	Annotations []*Annotation `json:"annotations"`
 }
 
-func (e Event)Platform()string  {
+func (e Event) Platform() string {
 	return "hangout"
 }
 
@@ -60,20 +61,23 @@ type Annotation struct {
 	} `json:"userMention"`
 }
 
-type command struct{
+type command struct {
 	actionType string
-	name string
-	args []string
-	space string
-	team *domain.Team
+	teamID     string
+	requester  string
+	name       string
+	args       []string
+	room       string
+	space      string
+	team       *domain.Team
 }
 
-func (c command)NoEmptyArgs()bool  {
-	if len(c.args) == 0{
+func (c command) NoEmptyArgs() bool {
+	if len(c.args) == 0 {
 		return true
 	}
-	for _,v := range c.args{
-		if v == ""{
+	for _, v := range c.args {
+		if v == "" {
 			return false
 		}
 	}

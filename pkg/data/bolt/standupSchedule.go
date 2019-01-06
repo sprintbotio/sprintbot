@@ -29,7 +29,7 @@ func (sr *StandUpRepository) SaveUpdate(teamID string, schedule domain.StandupSc
 }
 
 func (sr *StandUpRepository) List() ([]*domain.StandupSchedule, error) {
-	var s []*domain.StandupSchedule
+	s := []*domain.StandupSchedule{}
 	err := sr.db.View(func(tx *bolt.Tx) error {
 		c := tx.Bucket(standupSchedule).Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {

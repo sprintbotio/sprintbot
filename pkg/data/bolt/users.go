@@ -58,3 +58,10 @@ func (ur *UserRepository) Update(u *domain.User) error {
 	})
 	return err
 }
+
+func (ur *UserRepository) Delete(uid string) error {
+	return ur.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(usersBucket).Delete([]byte(uid))
+	})
+
+}

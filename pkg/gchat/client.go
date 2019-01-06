@@ -1,4 +1,4 @@
-package hangout
+package gchat
 
 import (
 	gchat "google.golang.org/api/chat/v1"

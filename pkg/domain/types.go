@@ -1,16 +1,17 @@
 package domain
 
+import (
+	"time"
+)
+
 type User struct {
 	Admin    bool
 	Org      string
 	Name     string
 	ID       string
 	Team     string
-	Role     string // admin | member | observer
-	Timezone struct {
-		UTCOffset int
-		Name      string
-	}
+	Role     string // admin | member | general
+	Timezone string
 }
 
 func (u User) IsAdmin() bool {
@@ -64,19 +65,25 @@ type StandUpLog struct {
 	Message  string
 }
 
+//go:generate moq -out mockStandUpRepo.go . StandUpRepo
 type StandUpRepo interface {
 	SaveUpdate(s *StandUp) error
 	Get(sid string) (*StandUp, error)
+	FindByTeam(tid string) (*StandUp, error)
+	GenerateID(teamID string, time time.Time) string
+	Delete(id string) error
+	List(teamID string) ([]*StandUp, error)
 }
 
-//go:generate moq -out userRepo_mock_test.go . UserRepo
+//go:generate moq -out mockUserRepo_mock.go . UserRepo
 type UserRepo interface {
 	AddUser(u *User) (string, error)
 	GetUser(id string) (*User, error)
 	Update(u *User) error
+	Delete(id string) error
 }
 
-//go:generate moq -out teamRepo_mock_test.go . TeamRepo
+//go:generate moq -out mockTeamRepo_mock.go . TeamRepo
 type TeamRepo interface {
 	AddTeam(team Team) (string, error)
 	GetTeam(id string) (*Team, error)
@@ -84,6 +91,7 @@ type TeamRepo interface {
 	Delete(id string) error
 }
 
+//go:generate moq -out mockScheduleRepo_mock.go . ScheduleRepo
 type ScheduleRepo interface {
 	SaveUpdate(teamID string, schedule StandupSchedule) error
 	List() ([]*StandupSchedule, error)

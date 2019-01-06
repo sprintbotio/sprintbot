@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"flag"
+
 	"net/http"
+
+	"github.com/sprintbot.io/sprintbot/pkg/standup"
 
 	"github.com/sirupsen/logrus"
 	"github.com/sprintbot.io/sprintbot/pkg/chat"
 	"github.com/sprintbot.io/sprintbot/pkg/data/bolt"
-	"github.com/sprintbot.io/sprintbot/pkg/hangout"
+	sprintBotGchat "github.com/sprintbot.io/sprintbot/pkg/gchat"
 	"github.com/sprintbot.io/sprintbot/pkg/team"
 	"github.com/sprintbot.io/sprintbot/pkg/user"
 	"github.com/sprintbot.io/sprintbot/pkg/web"
@@ -19,11 +22,13 @@ import (
 var (
 	logLevel string
 	dbLoc    string
+	platform string
 )
 
 func main() {
 	flag.StringVar(&logLevel, "log-level", "debug", "use this to set log level: error, info, debug")
 	flag.StringVar(&dbLoc, "db-loc", "./bot-db", "set the location of the db file")
+	flag.StringVar(&platform, "platform", "hangouts", "choose the chat platform to target")
 	flag.Parse()
 	switch logLevel {
 	case "info":
@@ -51,23 +56,7 @@ func main() {
 		panic(err)
 	}
 
-	// hangout client
-
-	gClient, err := google.DefaultClient(context.TODO(), "https://www.googleapis.com/auth/chat.bot")
-	if err != nil {
-		panic(err)
-	}
-	Gservice, err := gchat.New(gClient)
-	if err != nil {
-		panic(err)
-	}
-	spacesService := gchat.NewSpacesService(Gservice)
-	hangoutService := hangout.NewService(spacesService)
-
-	router := web.BuildRouter()
-	logger := logrus.StandardLogger()
-	httpHandler := web.BuildHTTPHandler(router)
-
+	// generic stuff
 	userRepo := bolt.NewUserRepository(db)
 	teamRepo := bolt.NewTeamRespository(db)
 	standUpRepo := bolt.NewStandUpRepo(db)
@@ -75,21 +64,48 @@ func main() {
 	chatActionHandler := chat.NewActionHandler()
 	teamService := team.NewService(userRepo, teamRepo)
 	userService := user.NewService(userRepo)
-	hangoutStandup := hangout.NewStandUpRunner(hangoutService, teamService, standUpRepo)
-	standupService := team.NewStandUpService(teamRepo, scheduleRepo, hangoutStandup, standUpRepo)
-	go standupService.Schedule(context.TODO())
+	router := web.BuildRouter()
+	logger := logrus.StandardLogger()
+	standupService := standup.NewStandUpService(teamRepo, scheduleRepo, standUpRepo)
+	var runner standup.Runner
+
+	if platform == "hangouts" {
+		// hangout client
+
+		gClient, err := google.DefaultClient(context.TODO(), "https://www.googleapis.com/auth/chat.bot")
+		if err != nil {
+			panic(err)
+		}
+		Gservice, err := gchat.New(gClient)
+		if err != nil {
+			panic(err)
+		}
+		spacesService := gchat.NewSpacesService(Gservice)
+		hangoutService := sprintBotGchat.NewService(spacesService)
+		runner = sprintBotGchat.NewStandUpRunner(hangoutService, teamService, standUpRepo)
+
+		hangoutChatHandler := sprintBotGchat.NewActionHandler(teamService, standupService, userService)
+
+		chatActionHandler.RegisterHandler(hangoutChatHandler)
+
+		handler := web.NewHangoutHandler(chatActionHandler)
+		web.MountHangoutHandler(router, handler)
+		// register commands
+		sprintBotGchat.NewRegisterationUseCase(userService, teamService).Register()
+		sprintBotGchat.NewTeamUseCase(teamService).Register()
+		sprintBotGchat.NewUserUseCases(userService).Register()
+		sprintBotGchat.NewHelpUseCase().Register()
+		sprintBotGchat.NewStandUpUseCase(standupService, userService).Register()
+
+	}
+
+	httpHandler := web.BuildHTTPHandler(router)
+
+	go standupService.Schedule(context.TODO(), runner)
 
 	//sys
 	{
 		web.MountSystemHandler(router)
-	}
-
-	// hangouts
-	{
-		hangoutChatHandler := hangout.NewActionHandler(teamService, userService, standupService)
-		chatActionHandler.RegisterHandler(hangoutChatHandler)
-		handler := web.NewHangoutHandler(chatActionHandler)
-		web.MountHangoutHandler(router, handler)
 	}
 
 	logger.Println("starting api on 8080")

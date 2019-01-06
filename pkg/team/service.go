@@ -61,14 +61,15 @@ func (ad *Service) PopulateTeam(id string) (*domain.Team, error) {
 	return t, nil
 }
 
-func (ad *Service) AddUserToTeam(name, uid, teamid string) error {
-	t, err := ad.teamRepo.GetTeam(teamid)
+func (ad *Service) AddUserToTeam(name, uid, teamID, role string) error {
+	t, err := ad.teamRepo.GetTeam(teamID)
 	if err != nil {
 		return err
 	}
 	u := domain.User{Admin: false}
 	u.Name = name
-	u.Team = teamid
+	u.Team = teamID
+	u.Role = role
 	u.ID = uid
 	id, err := ad.userRepo.AddUser(&u)
 	if err != nil {
@@ -100,16 +101,20 @@ func (ad *Service) RemoveUserFromTeam(uid, teamID string) error {
 	return ad.teamRepo.Update(team)
 }
 
-func (ad *Service) GetTeamForUser(userID string) (*domain.Team, error) {
-	u, err := ad.userRepo.GetUser(userID)
-	if err != nil {
-		return nil, err
+func (ad *Service) GetTeamForUser(user *domain.User) (*domain.Team, error) {
+	return ad.teamRepo.GetTeam(user.Team)
+}
+
+func (ad *Service) ResolveTeamForUser(user *domain.User) (*domain.Team, error) {
+	t, err := ad.teamRepo.GetTeam(user.Team)
+	if err != nil && domain.IsNotFoundErr(err) {
+		t = &domain.Team{
+			Name: "general",
+			ID:   "general",
+		}
+		return t, nil
 	}
-	t, err := ad.teamRepo.GetTeam(u.Team)
-	if err != nil {
-		return nil, err
-	}
-	return t, nil
+	return t, err
 }
 
 func (ad *Service) IsUserInTeam(uid, teamID string) (bool, error) {

@@ -1,4 +1,4 @@
-package hangout
+package gchat
 
 import (
 	"fmt"
@@ -38,9 +38,11 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 	var (
 		userDone                       = make(chan struct{})
 		userTimer                      *time.Timer
-		standUpID                      = fmt.Sprintf("%s-%d-%02d-%02d", teamID, now.Year(), now.Month(), now.Day())
+		standUpID                      = sr.standUpRepo.GenerateID(teamID, now)
 		currentUserID, currentUserName string
 		present                        bool
+		standUpErr                     error
+		standup                        *domain.StandUp
 	)
 	defer close(userDone)
 	msgBuilder := NewMessageBuilder()
@@ -55,13 +57,21 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 		return
 	}
 
-	// set to midnight to help querying
-	standUp := domain.StandUp{
-		ID:        standUpID,
-		StartTime: now.Unix(),
-		TeamID:    teamID,
+	// look for existing stand up as users may have already logged statuses
+	standup, standUpErr = sr.standUpRepo.Get(standUpID)
+	if standUpErr != nil && !domain.IsNotFoundErr(standUpErr) {
+		logrus.Error("failed to find an existing stand up", err)
+		return
 	}
-	if err := sr.standUpRepo.SaveUpdate(&standUp); err != nil {
+	if standup == nil {
+		// set to midnight to help querying
+		standup = &domain.StandUp{
+			ID:        standUpID,
+			StartTime: now.Unix(),
+			TeamID:    teamID,
+		}
+	}
+	if err := sr.standUpRepo.SaveUpdate(standup); err != nil {
 		logrus.Errorf("failed to save stand up", err)
 		msgBuilder.Text("I am unable to log this stand up due to an unexpected error. I will continue with the stand up")
 		if _, err := sr.chat.SendMessageToTeam(teamID, msg); err != nil {
@@ -143,6 +153,7 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 		present = false
 		currentUserID = m.ID
 		currentUserName = m.Name
+		statusLogged := false
 		logrus.Info("moving on to user ", m.Name)
 		standUp, err := sr.standUpRepo.Get(standUpID)
 		if err != nil {
@@ -151,10 +162,26 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 		userTimer = time.AfterFunc(time.Minute*2, func() {
 			userDone <- struct{}{}
 		})
-		msg := msgBuilder.Text(fmt.Sprintf(msgFormat, m.ID)).Mention(m.ID, m.Name, 0).Build()
-		// ask for an update.
-		if _, err := sr.chat.SendMessageToTeam(teamID, msg); err != nil {
-			logrus.Errorf("failed to send hangout message", err)
+		existingStatusMsg := "<" + currentUserID + "> logged the following status before the stand up started: \n %s"
+		// check if user has already logged a status. Show it if so and then move on
+		for _, status := range standUp.Log {
+			logrus.Info("status found ", status.UserName, status.UserID)
+			if status.UserID == currentUserID {
+				msg := msgBuilder.Text(fmt.Sprintf(existingStatusMsg, status.Message)).Build()
+				if _, err := sr.chat.SendMessageToTeam(teamID, msg); err != nil {
+					logrus.Errorf("failed to send message to room ", err)
+				}
+				statusLogged = true
+				userTimer.Reset(time.Second * 2)
+				break
+			}
+		}
+		if !statusLogged {
+			msg := msgBuilder.Text(fmt.Sprintf(msgFormat, m.ID)).Mention(m.ID, m.Name, 0).Build()
+			// ask for an update.
+			if _, err := sr.chat.SendMessageToTeam(teamID, msg); err != nil {
+				logrus.Errorf("failed to send hangout message", err)
+			}
 		}
 
 		<-userDone
