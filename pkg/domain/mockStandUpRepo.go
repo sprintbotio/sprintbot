@@ -5,11 +5,15 @@ package domain
 
 import (
 	"sync"
+	"time"
 )
 
 var (
+	lockStandUpRepoMockDelete     sync.RWMutex
 	lockStandUpRepoMockFindByTeam sync.RWMutex
+	lockStandUpRepoMockGenerateID sync.RWMutex
 	lockStandUpRepoMockGet        sync.RWMutex
+	lockStandUpRepoMockList       sync.RWMutex
 	lockStandUpRepoMockSaveUpdate sync.RWMutex
 )
 
@@ -19,11 +23,20 @@ var (
 //
 //         // make and configure a mocked StandUpRepo
 //         mockedStandUpRepo := &StandUpRepoMock{
+//             DeleteFunc: func(id string) error {
+// 	               panic("TODO: mock out the Delete method")
+//             },
 //             FindByTeamFunc: func(tid string) (*StandUp, error) {
 // 	               panic("TODO: mock out the FindByTeam method")
 //             },
+//             GenerateIDFunc: func(teamID string, t time.Time) string {
+// 	               panic("TODO: mock out the GenerateID method")
+//             },
 //             GetFunc: func(sid string) (*StandUp, error) {
 // 	               panic("TODO: mock out the Get method")
+//             },
+//             ListFunc: func(teamID string) ([]*StandUp, error) {
+// 	               panic("TODO: mock out the List method")
 //             },
 //             SaveUpdateFunc: func(s *StandUp) error {
 // 	               panic("TODO: mock out the SaveUpdate method")
@@ -35,26 +48,52 @@ var (
 //
 //     }
 type StandUpRepoMock struct {
+	// DeleteFunc mocks the Delete method.
+	DeleteFunc func(id string) error
+
 	// FindByTeamFunc mocks the FindByTeam method.
 	FindByTeamFunc func(tid string) (*StandUp, error)
 
+	// GenerateIDFunc mocks the GenerateID method.
+	GenerateIDFunc func(teamID string, t time.Time) string
+
 	// GetFunc mocks the Get method.
 	GetFunc func(sid string) (*StandUp, error)
+
+	// ListFunc mocks the List method.
+	ListFunc func(teamID string) ([]*StandUp, error)
 
 	// SaveUpdateFunc mocks the SaveUpdate method.
 	SaveUpdateFunc func(s *StandUp) error
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// Delete holds details about calls to the Delete method.
+		Delete []struct {
+			// ID is the id argument value.
+			ID string
+		}
 		// FindByTeam holds details about calls to the FindByTeam method.
 		FindByTeam []struct {
 			// Tid is the tid argument value.
 			Tid string
 		}
+		// GenerateID holds details about calls to the GenerateID method.
+		GenerateID []struct {
+			// TeamID is the teamID argument value.
+			TeamID string
+			// T is the t argument value.
+			T time.Time
+		}
 		// Get holds details about calls to the Get method.
 		Get []struct {
 			// Sid is the sid argument value.
 			Sid string
+		}
+		// List holds details about calls to the List method.
+		List []struct {
+			// TeamID is the teamID argument value.
+			TeamID string
 		}
 		// SaveUpdate holds details about calls to the SaveUpdate method.
 		SaveUpdate []struct {
@@ -62,6 +101,37 @@ type StandUpRepoMock struct {
 			S *StandUp
 		}
 	}
+}
+
+// Delete calls DeleteFunc.
+func (mock *StandUpRepoMock) Delete(id string) error {
+	if mock.DeleteFunc == nil {
+		panic("StandUpRepoMock.DeleteFunc: method is nil but StandUpRepo.Delete was just called")
+	}
+	callInfo := struct {
+		ID string
+	}{
+		ID: id,
+	}
+	lockStandUpRepoMockDelete.Lock()
+	mock.calls.Delete = append(mock.calls.Delete, callInfo)
+	lockStandUpRepoMockDelete.Unlock()
+	return mock.DeleteFunc(id)
+}
+
+// DeleteCalls gets all the calls that were made to Delete.
+// Check the length with:
+//     len(mockedStandUpRepo.DeleteCalls())
+func (mock *StandUpRepoMock) DeleteCalls() []struct {
+	ID string
+} {
+	var calls []struct {
+		ID string
+	}
+	lockStandUpRepoMockDelete.RLock()
+	calls = mock.calls.Delete
+	lockStandUpRepoMockDelete.RUnlock()
+	return calls
 }
 
 // FindByTeam calls FindByTeamFunc.
@@ -95,6 +165,41 @@ func (mock *StandUpRepoMock) FindByTeamCalls() []struct {
 	return calls
 }
 
+// GenerateID calls GenerateIDFunc.
+func (mock *StandUpRepoMock) GenerateID(teamID string, t time.Time) string {
+	if mock.GenerateIDFunc == nil {
+		panic("StandUpRepoMock.GenerateIDFunc: method is nil but StandUpRepo.GenerateID was just called")
+	}
+	callInfo := struct {
+		TeamID string
+		T      time.Time
+	}{
+		TeamID: teamID,
+		T:      t,
+	}
+	lockStandUpRepoMockGenerateID.Lock()
+	mock.calls.GenerateID = append(mock.calls.GenerateID, callInfo)
+	lockStandUpRepoMockGenerateID.Unlock()
+	return mock.GenerateIDFunc(teamID, t)
+}
+
+// GenerateIDCalls gets all the calls that were made to GenerateID.
+// Check the length with:
+//     len(mockedStandUpRepo.GenerateIDCalls())
+func (mock *StandUpRepoMock) GenerateIDCalls() []struct {
+	TeamID string
+	T      time.Time
+} {
+	var calls []struct {
+		TeamID string
+		T      time.Time
+	}
+	lockStandUpRepoMockGenerateID.RLock()
+	calls = mock.calls.GenerateID
+	lockStandUpRepoMockGenerateID.RUnlock()
+	return calls
+}
+
 // Get calls GetFunc.
 func (mock *StandUpRepoMock) Get(sid string) (*StandUp, error) {
 	if mock.GetFunc == nil {
@@ -123,6 +228,37 @@ func (mock *StandUpRepoMock) GetCalls() []struct {
 	lockStandUpRepoMockGet.RLock()
 	calls = mock.calls.Get
 	lockStandUpRepoMockGet.RUnlock()
+	return calls
+}
+
+// List calls ListFunc.
+func (mock *StandUpRepoMock) List(teamID string) ([]*StandUp, error) {
+	if mock.ListFunc == nil {
+		panic("StandUpRepoMock.ListFunc: method is nil but StandUpRepo.List was just called")
+	}
+	callInfo := struct {
+		TeamID string
+	}{
+		TeamID: teamID,
+	}
+	lockStandUpRepoMockList.Lock()
+	mock.calls.List = append(mock.calls.List, callInfo)
+	lockStandUpRepoMockList.Unlock()
+	return mock.ListFunc(teamID)
+}
+
+// ListCalls gets all the calls that were made to List.
+// Check the length with:
+//     len(mockedStandUpRepo.ListCalls())
+func (mock *StandUpRepoMock) ListCalls() []struct {
+	TeamID string
+} {
+	var calls []struct {
+		TeamID string
+	}
+	lockStandUpRepoMockList.RLock()
+	calls = mock.calls.List
+	lockStandUpRepoMockList.RUnlock()
 	return calls
 }
 

@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/sprintbot.io/sprintbot/pkg/domain"
+
 	"github.com/sprintbot.io/sprintbot/pkg/user"
 
 	"github.com/sprintbot.io/sprintbot/pkg/standup"
@@ -80,7 +82,13 @@ func (ah *ActionHandler) Handle(m chat.Message) string {
 		resp, err := h(cmd, event)
 		if err != nil {
 			logrus.Error("failed to execute command ", cmd.ActionType, err)
-			return commonErrResp
+			switch err.(type) {
+			case *domain.NotDirectMessageErr:
+				return err.Error()
+			default:
+				return commonErrResp
+			}
+
 		}
 		return resp
 	}
@@ -96,7 +104,6 @@ func (ah *ActionHandler) cleanText(argumentText string) string {
 }
 
 func (ah *ActionHandler) parseCommand(teamID string, event *Event, argumentText string) (chat.Command, error) {
-
 	cmd := chat.Command{
 		Requester:   event.User.DisplayName,
 		RequesterID: event.User.Name,
@@ -113,15 +120,23 @@ func (ah *ActionHandler) parseCommand(teamID string, event *Event, argumentText 
 		cmd.ActionType = "general"
 		return cmd, nil
 	}
-	logrus.Info("parse command text ", argumentText)
+	logrus.Println("parse command text ", argumentText)
 	for k, v := range chat.Commands {
 		if k.MatchString(argumentText) {
+			logrus.Println("found command ", k.String())
 			v.TeamID = teamID
 			v.Requester = event.User.DisplayName
 			v.RequesterID = event.User.Name
 			sm := k.FindStringSubmatch(argumentText)
 			logrus.Info("sub matches ", sm, len(sm))
 			v.Args = sm[1:]
+			namedArgs := map[string]string{}
+			for i, name := range k.SubexpNames() {
+				if name != "" {
+					namedArgs[name] = sm[i]
+				}
+			}
+			v.MappedArgs = namedArgs
 			return v, nil
 		}
 	}

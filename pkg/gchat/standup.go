@@ -76,7 +76,7 @@ func (ss *StandUpUseCase) LogStandUpStatus(cmd chat.Command, event *Event) (stri
 	// if a standup exists but is not yet started then someone else has logged a status and we need to add to it
 	// If no standup present then it is for the current day in the users timezone
 	if event.Space.Type != "DM" {
-		return "please use a direct message for this.", nil
+		return "", &domain.NotDirectMessageErr{}
 	} // needs to be done as direct message
 	successFmt := "Your status was logged. It will be shown to the team during the stand up for the date  %d-%02d-%02d "
 	log := &domain.StandUpLog{

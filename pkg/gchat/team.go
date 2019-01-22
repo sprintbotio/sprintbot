@@ -21,14 +21,14 @@ func NewTeamUseCase(ts *team.Service) *Team {
 
 const (
 	addedUserResp = "Added %s to team: %s \n" +
-		"update this users timzone using ```set timezone @user Europe/Dublin ``` \n" +
+		"If you need to update or change this user's timezone use ```set timezone @user Europe/Dublin ``` \n" +
 		"For a full list of timezones visit https://timezonedb.com/time-zones"
 )
 
 func (t *Team) AddUserToTeam(cmd chat.Command, event *Event) (string, error) {
 	var added []string
 	for _, a := range event.Message.Annotations {
-		if a != nil && (a.UserMention.User.DisplayName != "sprintbot" && a.UserMention.User.DisplayName != "") {
+		if a != nil && (strings.ToLower(a.UserMention.User.DisplayName) != "sprintbot" && a.UserMention.User.DisplayName != "") {
 			userToAdd := a.UserMention.User.DisplayName
 			userID := a.UserMention.User.Name
 			is, err := t.teamService.IsUserInTeam(userToAdd, cmd.TeamID)
@@ -38,7 +38,9 @@ func (t *Team) AddUserToTeam(cmd chat.Command, event *Event) (string, error) {
 			if is {
 				continue
 			}
-			if err := t.teamService.AddUserToTeam(userToAdd, userID, cmd.TeamID, "member"); err != nil {
+			tz := cmd.MappedArgs["tz"]
+			logrus.Info("timezone ", tz, "user", userToAdd)
+			if err := t.teamService.AddUserToTeam(userToAdd, userID, cmd.TeamID, "member", tz); err != nil {
 				return "", err
 			}
 			added = append(added, userToAdd)
@@ -67,12 +69,12 @@ func (t *Team) RemoveUserFromTeam(cmd chat.Command, event *Event) (string, error
 }
 
 func (t *Team) ViewTeam(cmd chat.Command, event *Event) (string, error) {
-	team, err := t.teamService.PopulateTeam(cmd.TeamID)
+	pTeam, err := t.teamService.PopulateTeam(cmd.TeamID)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get the team")
 	}
-	var teamView = `|` + team.Name + `|\n`
-	for _, u := range team.Users {
+	var teamView = `|` + pTeam.Name + `|\n`
+	for _, u := range pTeam.Users {
 		teamView += u.Name + ` ` + u.Timezone + `\n`
 	}
 	return teamView, nil

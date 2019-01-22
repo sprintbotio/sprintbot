@@ -33,15 +33,20 @@ func NewRegisterationUseCase(userService *user.Service, teamService *team.Servic
 
 //TODO add metrics
 func (r *Registration) HandleRegistration(cmd chat.Command, event *Event) (string, error) {
-	logrus.Debug("register handler")
-	id, err := r.userService.RegisterAdmin(event.User.DisplayName, event.User.Name, event.Space.Name)
+	logrus.Info("register handler", event.EventTime.Location())
+	var tz string
+	if event.EventTime.Location() != nil {
+		tz, _ = event.EventTime.Zone()
+	}
+	logrus.Info("time zone is ", tz)
+	id, err := r.userService.RegisterAdmin(event.User.DisplayName, event.User.Name, event.Space.Name, tz)
 	if err != nil {
 		return "<" + event.User.Name + "> I was unable to register you or your team. Try removing me from the room and re adding me.", err
 	}
 	if _, err := r.teamService.RegisterTeam(event.Space.DisplayName, event.Space.Name, id); err != nil {
 		return "I was unable to register the team", err
 	}
-
+	logrus.Info("registration complete")
 	return fmt.Sprintf(registerResponse, event.User.Name, event.Space.DisplayName), nil
 }
 

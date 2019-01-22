@@ -9,6 +9,7 @@ import (
 
 var (
 	lockUserRepoMockAddUser sync.RWMutex
+	lockUserRepoMockDelete  sync.RWMutex
 	lockUserRepoMockGetUser sync.RWMutex
 	lockUserRepoMockUpdate  sync.RWMutex
 )
@@ -21,6 +22,9 @@ var (
 //         mockedUserRepo := &UserRepoMock{
 //             AddUserFunc: func(u *User) (string, error) {
 // 	               panic("TODO: mock out the AddUser method")
+//             },
+//             DeleteFunc: func(id string) error {
+// 	               panic("TODO: mock out the Delete method")
 //             },
 //             GetUserFunc: func(id string) (*User, error) {
 // 	               panic("TODO: mock out the GetUser method")
@@ -38,6 +42,9 @@ type UserRepoMock struct {
 	// AddUserFunc mocks the AddUser method.
 	AddUserFunc func(u *User) (string, error)
 
+	// DeleteFunc mocks the Delete method.
+	DeleteFunc func(id string) error
+
 	// GetUserFunc mocks the GetUser method.
 	GetUserFunc func(id string) (*User, error)
 
@@ -50,6 +57,11 @@ type UserRepoMock struct {
 		AddUser []struct {
 			// U is the u argument value.
 			U *User
+		}
+		// Delete holds details about calls to the Delete method.
+		Delete []struct {
+			// ID is the id argument value.
+			ID string
 		}
 		// GetUser holds details about calls to the GetUser method.
 		GetUser []struct {
@@ -92,6 +104,37 @@ func (mock *UserRepoMock) AddUserCalls() []struct {
 	lockUserRepoMockAddUser.RLock()
 	calls = mock.calls.AddUser
 	lockUserRepoMockAddUser.RUnlock()
+	return calls
+}
+
+// Delete calls DeleteFunc.
+func (mock *UserRepoMock) Delete(id string) error {
+	if mock.DeleteFunc == nil {
+		panic("UserRepoMock.DeleteFunc: method is nil but UserRepo.Delete was just called")
+	}
+	callInfo := struct {
+		ID string
+	}{
+		ID: id,
+	}
+	lockUserRepoMockDelete.Lock()
+	mock.calls.Delete = append(mock.calls.Delete, callInfo)
+	lockUserRepoMockDelete.Unlock()
+	return mock.DeleteFunc(id)
+}
+
+// DeleteCalls gets all the calls that were made to Delete.
+// Check the length with:
+//     len(mockedUserRepo.DeleteCalls())
+func (mock *UserRepoMock) DeleteCalls() []struct {
+	ID string
+} {
+	var calls []struct {
+		ID string
+	}
+	lockUserRepoMockDelete.RLock()
+	calls = mock.calls.Delete
+	lockUserRepoMockDelete.RUnlock()
 	return calls
 }
 

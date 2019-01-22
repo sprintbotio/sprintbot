@@ -45,11 +45,18 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 		standup                        *domain.StandUp
 	)
 	defer close(userDone)
+	defer delete(standupThread, teamID)
+
+	t, err := sr.teamService.PopulateTeam(teamID)
+	if err != nil {
+		logrus.Errorf("failed to get a populated team", err)
+		return
+	}
 	msgBuilder := NewMessageBuilder()
 	// create a stand up rep
-
-	var startMsg = "Stand up is now starting. Each team member will be asked for their status update. If a team member doesn't respond within 2 mins they will be considered absent." +
-		"Due to the limitations of hangouts, *Please ensure to mention @sprintbot in your replies*\n"
+	teamMembers := sr.buildTeamMemberList(t)
+	var startMsg = teamMembers + "The stand up is now starting. Each team member will be asked for their status update. If a team member doesn't respond within 2 minutes they will be considered absent." +
+		"*Please ensure to mention @sprintbot in your replies*\n If you wish to have a comment logged after a team member's status is given, ensure to also mention @sprintbot in the comment"
 	threadID := standupThread[teamID]
 	msg := msgBuilder.Text(startMsg).Thread(threadID).Build()
 	if _, err := sr.chat.SendMessageToTeam(teamID, msg); err != nil {
@@ -79,11 +86,6 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 		}
 	}
 
-	t, err := sr.teamService.PopulateTeam(teamID)
-	if err != nil {
-		logrus.Errorf("failed to get a populated team", err)
-		return
-	}
 	msgFormat := "<%s> please give your update. \n Remember to *mention @sprintbot in your reply* \n Admins can choose to skip this user using @sprinbot skip"
 
 	go func() {
@@ -100,9 +102,19 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 				continue
 			}
 			if m.UserID != currentUserID {
-				msgBuilder.Text("sorry <" + m.UserID + "> only <" + currentUserID + "> can add their own status during the stand up")
-				if _, err := sr.chat.SendMessageToTeam(teamID, msgBuilder.Build()); err != nil {
-					logrus.Error("failed to send message ", err)
+				// This could be a comment based on what the user said. We should record this
+				if len(standUp.Log) > 0 {
+					// get last log and add a comment to it
+					standUp.Log[len(standUp.Log)-1].Comments = append(standUp.Log[len(standUp.Log)-1].Comments, m.Msg)
+					if err := sr.standUpRepo.SaveUpdate(standUp); err != nil {
+						logrus.Error("failed to save the stand up comment ", err)
+					}
+
+				} else {
+					msgBuilder.Text("sorry <" + m.UserID + "> only <" + currentUserID + "> has not yet added a status. Please hold any comments until the a status has been added")
+					if _, err := sr.chat.SendMessageToTeam(teamID, msgBuilder.Build()); err != nil {
+						logrus.Error("failed to send message ", err)
+					}
 				}
 				continue
 			}
@@ -195,17 +207,35 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 			}
 		}
 	}
-	//TODO allow for other comments
+	msgBuilder.Text("any final comments you want logged before we wrap up the standup? If nothing is sent I will end the standup in 1 minute")
+	if _, err := sr.chat.SendMessageToTeam(teamID, msgBuilder.Build()); err != nil {
+		logrus.Errorf("failed to send message to team ", err)
+	}
+	// wait a final minute for any final comments
+	<-time.Tick(1 * time.Minute)
 	logrus.Info("standup complete")
 	msgBuilder.Text("The standup is now complete. To see what was recorded during this standup use *@sprintbot standup log* \n")
 	if _, err := sr.chat.SendMessageToTeam(teamID, msgBuilder.Build()); err != nil {
 		logrus.Errorf("failed to send message to team ", err)
 	}
-	delete(standupThread, teamID)
+	standup, err = sr.standUpRepo.Get(standup.ID)
+	if err != nil {
+		logrus.Errorf("failed to send message to team ", err)
+	}
+	standup.EndTime = time.Now().In(loc).Unix()
+	if err := sr.standUpRepo.SaveUpdate(standup); err != nil {
+		logrus.Errorf("failed to save stand up ", err)
+	}
+
 }
 
 func (sr *StandUpRunner) Announce(teamID string, minutesBefore time.Duration) {
-	msg := NewMessageBuilder().Text(fmt.Sprintf("stand up will start in %d minutes", minutesBefore/time.Minute)).Build()
+	t, err := sr.teamService.PopulateTeam(teamID)
+	if err != nil {
+		logrus.Error("failed to announce standup ", err)
+	}
+	teamMembers := sr.buildTeamMemberList(t)
+	msg := NewMessageBuilder().Text(fmt.Sprintf("%s stand up will start in %d minutes", teamMembers, minutesBefore/time.Minute)).Build()
 	id, err := sr.chat.SendMessageToTeam(teamID, msg)
 	if err != nil {
 		logrus.Error("failed to announce standup ", err)
@@ -213,6 +243,10 @@ func (sr *StandUpRunner) Announce(teamID string, minutesBefore time.Duration) {
 	standupThread[teamID] = id
 }
 
-func (sr *StandUpRunner) LogStandUpMessage(cmd command, event *Event) {
-
+func (sr *StandUpRunner) buildTeamMemberList(team *domain.Team) string {
+	teamMembers := ""
+	for _, u := range team.Users {
+		teamMembers += "<" + u.ID + "> "
+	}
+	return teamMembers
 }

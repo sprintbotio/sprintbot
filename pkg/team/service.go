@@ -61,7 +61,7 @@ func (ad *Service) PopulateTeam(id string) (*domain.Team, error) {
 	return t, nil
 }
 
-func (ad *Service) AddUserToTeam(name, uid, teamID, role string) error {
+func (ad *Service) AddUserToTeam(name, uid, teamID, role, tz string) error {
 	t, err := ad.teamRepo.GetTeam(teamID)
 	if err != nil {
 		return err
@@ -69,6 +69,7 @@ func (ad *Service) AddUserToTeam(name, uid, teamID, role string) error {
 	u := domain.User{Admin: false}
 	u.Name = name
 	u.Team = teamID
+	u.Timezone = tz
 	u.Role = role
 	u.ID = uid
 	id, err := ad.userRepo.AddUser(&u)

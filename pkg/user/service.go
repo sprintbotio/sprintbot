@@ -13,12 +13,13 @@ func NewService(ur domain.UserRepo) *Service {
 	return &Service{userRepo: ur}
 }
 
-func (us *Service) RegisterAdmin(adminName, uid, space string) (string, error) {
+func (us *Service) RegisterAdmin(adminName, uid, space, timeZone string) (string, error) {
 	admin := domain.User{Admin: true}
 	admin.Name = adminName
 	admin.Team = space
 	admin.Role = "admin"
 	admin.ID = uid
+	admin.Timezone = timeZone
 	id, err := us.userRepo.AddUser(&admin)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to register admin")

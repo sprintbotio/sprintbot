@@ -63,6 +63,7 @@ type StandUpLog struct {
 	UserName string
 	UserID   string
 	Message  string
+	Comments []string
 }
 
 //go:generate moq -out mockStandUpRepo.go . StandUpRepo
@@ -70,7 +71,7 @@ type StandUpRepo interface {
 	SaveUpdate(s *StandUp) error
 	Get(sid string) (*StandUp, error)
 	FindByTeam(tid string) (*StandUp, error)
-	GenerateID(teamID string, time time.Time) string
+	GenerateID(teamID string, t time.Time) string
 	Delete(id string) error
 	List(teamID string) ([]*StandUp, error)
 }

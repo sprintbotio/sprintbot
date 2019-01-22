@@ -5,7 +5,6 @@ metadata:
   labels:
     app: sprintbot
   name: sprintbot
-  namespace: sprintbot
 spec:
   replicas: 1
   selector:

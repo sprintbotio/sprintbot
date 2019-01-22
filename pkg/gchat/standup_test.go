@@ -1,6 +1,7 @@
 package gchat_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/sprintbot.io/sprintbot/pkg/chat"
@@ -11,42 +12,55 @@ import (
 )
 
 func TestStandUpUseCase_LogStandUpStatus(t *testing.T) {
-	userID := "someuser"
 	teamId := "someteam"
 	cases := []struct {
 		Name        string
-		UserRepo    func() domain.UserRepo
+		SchduleRepo func() domain.ScheduleRepo
 		TeamRepo    func() domain.TeamRepo
 		StandUpRepo func() domain.StandUpRepo
 		ChatCmd     func() chat.Command
 		Event       func() *gchat.Event
+		UserRepo    func() domain.UserRepo
 		ExpectError bool
-		Validate    func(t *testing.T, resp string)
+		Validate    func(t *testing.T, resp string, err error)
 	}{
 		{
-			Name: "test stand up logged for current day when no stand up present",
-			UserRepo: func() domain.UserRepo {
-				m := &domain.UserRepoMock{
-					GetUserFunc: func(id string) (i *domain.User, e error) {
-						return &domain.User{
-							ID:       userID,
-							Timezone: "Europe/Dublin",
-						}, nil
-					},
-				}
-				return m
+			Name: "test logging stand up fails when not a direct message to the bot",
+			SchduleRepo: func() domain.ScheduleRepo {
+				return &domain.ScheduleRepoMock{}
 			},
 			StandUpRepo: func() domain.StandUpRepo {
-				m := &domain.StandUpRepoMock{
-					GetFunc: func(sid string) (up *domain.StandUp, e error) {
-						return nil, domain.NewNotFoundErr("standup")
-					},
-				}
+				m := &domain.StandUpRepoMock{}
 				return m
+			},
+			TeamRepo: func() domain.TeamRepo {
+				return &domain.TeamRepoMock{}
+			},
+			UserRepo: func() domain.UserRepo {
+				return &domain.UserRepoMock{}
 			},
 			ChatCmd: func() chat.Command {
 				return chat.Command{
 					TeamID: teamId,
+				}
+			},
+			Event: func() *gchat.Event {
+				return &gchat.Event{
+					Space: struct {
+						Name        string `json:"name"`
+						DisplayName string `json:"displayName"`
+						Type        string `json:"type"`
+					}{Name: "test", DisplayName: "test", Type: "ROOM"},
+				}
+			},
+			ExpectError: true,
+			Validate: func(t *testing.T, resp string, err error) {
+				if resp != "" {
+					t.Fatalf("expected the response to be empty but it was %s", resp)
+				}
+				_, ok := err.(*domain.NotDirectMessageErr)
+				if !ok {
+					t.Fatalf("expectd an NotDirectMessageErr response but got %s", reflect.TypeOf(resp))
 				}
 			},
 		},
@@ -73,8 +87,9 @@ func TestStandUpUseCase_LogStandUpStatus(t *testing.T) {
 			if !tc.ExpectError && err != nil {
 				t.Fatal("did not expect an err but got one ", err)
 			}
+
 			if tc.Validate != nil {
-				tc.Validate(t, resp)
+				tc.Validate(t, resp, err)
 			}
 
 		})

@@ -43,6 +43,7 @@ type Command struct {
 	RequesterID string
 	Name        string
 	Args        []string
+	MappedArgs  map[string]string
 	Room        string
 }
 
@@ -72,7 +73,7 @@ const (
 )
 
 var (
-	AddToTeamRegexp           = regexp.MustCompile(`^add.*to (the\s)?team.*`)
+	AddToTeamRegexp           = regexp.MustCompile(`^add.*to (the\s)?team\s?(in\stimezone\s)?(set\stimezone\s)?(?P<tz>\w+\/\w+\/?\w+)?`)
 	ViewTeamRegexp            = regexp.MustCompile(`^(view|show)?(\s\w+)?(\s\w+)?\steam.*`)
 	RemoveFromTeamRegexp      = regexp.MustCompile(`^remove.*from team.*`)
 	MakeUsersAdminsRegexp     = regexp.MustCompile(`^make.*admin(s)?`)
