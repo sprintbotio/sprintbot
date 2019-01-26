@@ -3,6 +3,8 @@ package chat
 import (
 	"regexp"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/sprintbot.io/sprintbot/pkg/domain"
 )
 
@@ -77,7 +79,7 @@ var (
 	ViewTeamRegexp            = regexp.MustCompile(`^(view|show)?(\s\w+)?(\s\w+)?\steam.*`)
 	RemoveFromTeamRegexp      = regexp.MustCompile(`^remove.*from team.*`)
 	MakeUsersAdminsRegexp     = regexp.MustCompile(`^make.*admin(s)?`)
-	SetUserTimeZoneRegexp     = regexp.MustCompile(`^set timezone.*\s(?P<zone>\w+\/\w+\/?\w+)`)
+	SetUserTimeZoneRegexp     = regexp.MustCompile(`^set (?P<self>my)?\s?timezone.*\s(?P<zone>\w+\/\w+\/?\w+)`)
 	ScheduleStandUpRegexp     = regexp.MustCompile(`^schedule standup\s?(for|at)?\s?(\d\d)?:?(\d\d)?\s?(\w+\/\w+)?`)
 	StandUpLogRegexp          = regexp.MustCompile(`^(view)?\s?standup log$`)
 	AdminHelpRegexp           = regexp.MustCompile(`^admin help$`)
@@ -100,11 +102,13 @@ var (
 )
 
 func CanUserDoCmd(u *domain.User, cmd Command) bool {
+	logrus.Infof("can user do cmd %s %s ", cmd.ActionType, u.Role)
 	if cmd.ActionType == "general" {
 		return true
 	}
 	if u.Role == "admin" {
 		return true
 	}
+
 	return u.Role == cmd.ActionType
 }

@@ -59,6 +59,17 @@ func (sr *StandUpRepo) Delete(id string) error {
 	})
 }
 
+func (sr *StandUpRepo) DeleteAllForTeam(id string) error {
+	sups, err := sr.List(id)
+	if err != nil {
+		return err
+	}
+	for _, s := range sups {
+		return sr.Delete(s.ID)
+	}
+	return nil
+}
+
 func (sr *StandUpRepo) List(teamID string) ([]*domain.StandUp, error) {
 	var standUps []*domain.StandUp
 	err := sr.db.View(func(tx *bolt.Tx) error {

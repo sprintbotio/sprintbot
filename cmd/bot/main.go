@@ -91,7 +91,7 @@ func main() {
 		handler := web.NewHangoutHandler(chatActionHandler)
 		web.MountHangoutHandler(router, handler)
 		// register commands
-		sprintBotGchat.NewRegisterationUseCase(userService, teamService).Register()
+		sprintBotGchat.NewRegisterationUseCase(userService, teamService, standupService).Register()
 		sprintBotGchat.NewTeamUseCase(teamService).Register()
 		sprintBotGchat.NewUserUseCases(userService).Register()
 		sprintBotGchat.NewHelpUseCase().Register()

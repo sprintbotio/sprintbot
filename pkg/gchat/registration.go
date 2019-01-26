@@ -3,6 +3,8 @@ package gchat
 import (
 	"fmt"
 
+	"github.com/sprintbot.io/sprintbot/pkg/standup"
+
 	"github.com/sprintbot.io/sprintbot/pkg/chat"
 
 	"github.com/pkg/errors"
@@ -13,8 +15,9 @@ import (
 )
 
 type Registration struct {
-	userService *user.Service
-	teamService *team.Service
+	userService    *user.Service
+	teamService    *team.Service
+	standupService *standup.Service
 }
 
 const (
@@ -24,10 +27,11 @@ To find out more of what is available use the following command:
 *@sprintbot admin help*`
 )
 
-func NewRegisterationUseCase(userService *user.Service, teamService *team.Service) *Registration {
+func NewRegisterationUseCase(userService *user.Service, teamService *team.Service, supService *standup.Service) *Registration {
 	return &Registration{
-		userService: userService,
-		teamService: teamService,
+		userService:    userService,
+		teamService:    teamService,
+		standupService: supService,
 	}
 }
 
@@ -55,6 +59,9 @@ func (r *Registration) HandleUnRegister(cmd chat.Command, event *Event) (string,
 	t, err := r.teamService.PopulateTeam(cmd.TeamID)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to populate team to remove")
+	}
+	if err := r.standupService.RemoveAllStandUpsForTeam(t.ID); err != nil {
+		return "", err
 	}
 	for _, u := range t.Users {
 		if err := r.userService.DeleteUser(u.ID); err != nil {

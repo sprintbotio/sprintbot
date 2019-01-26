@@ -109,7 +109,7 @@ func (ah *ActionHandler) parseCommand(teamID string, event *Event, argumentText 
 		RequesterID: event.User.Name,
 		TeamID:      teamID,
 	}
-	if event.Type == "ADDED_TO_SPACE" {
+	if event.Type == "ADDED_TO_SPACE" && event.Space.Type != "DM" {
 		cmd.Name = chat.CommandRegister
 		cmd.ActionType = "general"
 		return cmd, nil

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/sprintbot.io/sprintbot/pkg/domain"
 
 	"github.com/sprintbot.io/sprintbot/pkg/user"
@@ -48,7 +50,7 @@ please resend with the following format ` +
 func (ss *StandUpUseCase) StandUpLog(cmd chat.Command, event *Event) (string, error) {
 	standUp, err := ss.standUpService.LoadStandUp(cmd.TeamID, time.Now())
 	if err != nil {
-		if domain.IsNotFoundErr(err) {
+		if domain.IsNotFoundErr(errors.Cause(err)) {
 			return "There is no log for a stand up today. Perhaps it has not run yet?", nil
 		}
 		return "", err
@@ -56,7 +58,7 @@ func (ss *StandUpUseCase) StandUpLog(cmd chat.Command, event *Event) (string, er
 
 	res := "Present: " + strings.Join(standUp.Present, " , ") + " \n"
 	res += "Absent: " + strings.Join(standUp.Absent, " , ") + " \n"
-
+	logrus.Debug("logs found ", len(standUp.Log))
 	for _, l := range standUp.Log {
 		res += fmt.Sprintf("@" + l.UserName + " logged: \n ```" + l.Message + "``` \n")
 	}
@@ -102,6 +104,8 @@ func (ss *StandUpUseCase) LogStandUpStatus(cmd chat.Command, event *Event) (stri
 	}
 	if s == nil {
 		// no standup
+		//todo still need to check time of standup schedule as if it is after that time  we should create a standup for tomorrow
+
 		s, err := ss.standUpService.CreateStandUp(t, cmd.TeamID)
 		if err != nil {
 			return "", err

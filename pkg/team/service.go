@@ -110,7 +110,7 @@ func (ad *Service) ResolveTeamForUser(user *domain.User) (*domain.Team, error) {
 	t, err := ad.teamRepo.GetTeam(user.Team)
 	if err != nil && domain.IsNotFoundErr(err) {
 		t = &domain.Team{
-			Name: "general",
+			Name: "none",
 			ID:   "general",
 		}
 		return t, nil

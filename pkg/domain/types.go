@@ -74,6 +74,7 @@ type StandUpRepo interface {
 	GenerateID(teamID string, t time.Time) string
 	Delete(id string) error
 	List(teamID string) ([]*StandUp, error)
+	DeleteAllForTeam(id string) error
 }
 
 //go:generate moq -out mockUserRepo_mock.go . UserRepo

@@ -55,6 +55,13 @@ func (ss *Service) CreateStandUp(time time.Time, teamID string) (*domain.StandUp
 	return s, nil
 }
 
+func (ss *Service) CreateNextStandUp(t time.Time, teamID string) {
+	// has stand up ran based on timezone time t
+	// if not is there one scheduled to happen today
+	// if one is scheduled to happen today create a standup for today
+	// otherwise create a standup for the next day
+}
+
 var standUpMsgs = map[string]chan domain.StandUpMsg{}
 
 func (ss *Service) Schedule(ctx context.Context, runner Runner) {
@@ -128,8 +135,19 @@ func (ss *Service) AddStandUpLog(sid string, log *domain.StandUpLog) error {
 	if err != nil {
 		return err
 	}
+	// has this user already added  a status if so add it to the original
+	for i, l := range su.Log {
+		if l.UserID == log.UserID {
+			su.Log[i].Message += "\n" + log.Message
+			return ss.sl.SaveUpdate(su)
+		}
+	}
 	su.Log = append(su.Log, log)
 	return ss.sl.SaveUpdate(su)
+}
+
+func (ss *Service) RemoveAllStandUpsForTeam(tid string) error {
+	return ss.sl.DeleteAllForTeam(tid)
 }
 
 func (ss *Service) LoadStandUp(teamID string, time time.Time) (*domain.StandUp, error) {
