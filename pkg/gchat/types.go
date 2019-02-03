@@ -8,6 +8,7 @@ import (
 
 type Event struct {
 	Type      string    `json:"type"`
+	Token     string    `json:"token"`
 	EventTime time.Time `json:"eventTime"`
 	Space     struct {
 		Name        string `json:"name"`

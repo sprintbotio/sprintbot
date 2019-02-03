@@ -47,6 +47,11 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 	defer close(userDone)
 	defer delete(standupThread, teamID)
 
+	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+		logrus.Info("skipping stand up as it is the weekend")
+		return
+	}
+
 	t, err := sr.teamService.PopulateTeam(teamID)
 	if err != nil {
 		logrus.Errorf("failed to get a populated team", err)
@@ -105,7 +110,8 @@ func (sr *StandUpRunner) Run(teamID, tz string, msgChan chan domain.StandUpMsg) 
 				// This could be a comment based on what the user said. We should record this
 				if len(standUp.Log) > 0 {
 					// get last log and add a comment to it
-					standUp.Log[len(standUp.Log)-1].Comments = append(standUp.Log[len(standUp.Log)-1].Comments, m.Msg)
+					comment := &domain.StandUpLog{Message: m.Msg, UserID: m.UserID, UserName: m.UserName}
+					standUp.Log[len(standUp.Log)-1].Comments = append(standUp.Log[len(standUp.Log)-1].Comments, comment)
 					if err := sr.standUpRepo.SaveUpdate(standUp); err != nil {
 						logrus.Error("failed to save the stand up comment ", err)
 					}

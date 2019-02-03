@@ -11,10 +11,11 @@ import (
 
 type HangoutHandler struct {
 	chatActionHandler *chat.ActionHandler
+	key               string
 }
 
-func NewHangoutHandler(chatActionHandler *chat.ActionHandler) *HangoutHandler {
-	return &HangoutHandler{chatActionHandler: chatActionHandler}
+func NewHangoutHandler(chatActionHandler *chat.ActionHandler, key string) *HangoutHandler {
+	return &HangoutHandler{chatActionHandler: chatActionHandler, key: key}
 }
 
 func (hh *HangoutHandler) Message(rw http.ResponseWriter, req *http.Request) {
@@ -24,6 +25,11 @@ func (hh *HangoutHandler) Message(rw http.ResponseWriter, req *http.Request) {
 		http.Error(rw, "could not parse message", http.StatusBadRequest)
 		return
 
+	}
+	if hh.key != message.Token {
+		logrus.Error("incorrect token sent ", message.Token)
+		http.Error(rw, "", http.StatusUnauthorized)
+		return
 	}
 	response := hh.chatActionHandler.Handle(&message)
 

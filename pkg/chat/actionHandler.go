@@ -2,10 +2,6 @@ package chat
 
 import (
 	"regexp"
-
-	"github.com/sirupsen/logrus"
-
-	"github.com/sprintbot.io/sprintbot/pkg/domain"
 )
 
 type ActionHandler struct {
@@ -100,15 +96,3 @@ var (
 		RemoveLatestStandUpRegexp: {ActionType: "admin", Name: CommandRemoveLatestStandUp},
 	}
 )
-
-func CanUserDoCmd(u *domain.User, cmd Command) bool {
-	logrus.Infof("can user do cmd %s %s ", cmd.ActionType, u.Role)
-	if cmd.ActionType == "general" {
-		return true
-	}
-	if u.Role == "admin" {
-		return true
-	}
-
-	return u.Role == cmd.ActionType
-}

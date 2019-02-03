@@ -9,12 +9,13 @@ import (
 )
 
 var (
-	lockStandUpRepoMockDelete     sync.RWMutex
-	lockStandUpRepoMockFindByTeam sync.RWMutex
-	lockStandUpRepoMockGenerateID sync.RWMutex
-	lockStandUpRepoMockGet        sync.RWMutex
-	lockStandUpRepoMockList       sync.RWMutex
-	lockStandUpRepoMockSaveUpdate sync.RWMutex
+	lockStandUpRepoMockDelete           sync.RWMutex
+	lockStandUpRepoMockDeleteAllForTeam sync.RWMutex
+	lockStandUpRepoMockFindByTeam       sync.RWMutex
+	lockStandUpRepoMockGenerateID       sync.RWMutex
+	lockStandUpRepoMockGet              sync.RWMutex
+	lockStandUpRepoMockList             sync.RWMutex
+	lockStandUpRepoMockSaveUpdate       sync.RWMutex
 )
 
 // StandUpRepoMock is a mock implementation of StandUpRepo.
@@ -25,6 +26,9 @@ var (
 //         mockedStandUpRepo := &StandUpRepoMock{
 //             DeleteFunc: func(id string) error {
 // 	               panic("TODO: mock out the Delete method")
+//             },
+//             DeleteAllForTeamFunc: func(id string) error {
+// 	               panic("TODO: mock out the DeleteAllForTeam method")
 //             },
 //             FindByTeamFunc: func(tid string) (*StandUp, error) {
 // 	               panic("TODO: mock out the FindByTeam method")
@@ -51,6 +55,9 @@ type StandUpRepoMock struct {
 	// DeleteFunc mocks the Delete method.
 	DeleteFunc func(id string) error
 
+	// DeleteAllForTeamFunc mocks the DeleteAllForTeam method.
+	DeleteAllForTeamFunc func(id string) error
+
 	// FindByTeamFunc mocks the FindByTeam method.
 	FindByTeamFunc func(tid string) (*StandUp, error)
 
@@ -70,6 +77,11 @@ type StandUpRepoMock struct {
 	calls struct {
 		// Delete holds details about calls to the Delete method.
 		Delete []struct {
+			// ID is the id argument value.
+			ID string
+		}
+		// DeleteAllForTeam holds details about calls to the DeleteAllForTeam method.
+		DeleteAllForTeam []struct {
 			// ID is the id argument value.
 			ID string
 		}
@@ -131,6 +143,37 @@ func (mock *StandUpRepoMock) DeleteCalls() []struct {
 	lockStandUpRepoMockDelete.RLock()
 	calls = mock.calls.Delete
 	lockStandUpRepoMockDelete.RUnlock()
+	return calls
+}
+
+// DeleteAllForTeam calls DeleteAllForTeamFunc.
+func (mock *StandUpRepoMock) DeleteAllForTeam(id string) error {
+	if mock.DeleteAllForTeamFunc == nil {
+		panic("StandUpRepoMock.DeleteAllForTeamFunc: method is nil but StandUpRepo.DeleteAllForTeam was just called")
+	}
+	callInfo := struct {
+		ID string
+	}{
+		ID: id,
+	}
+	lockStandUpRepoMockDeleteAllForTeam.Lock()
+	mock.calls.DeleteAllForTeam = append(mock.calls.DeleteAllForTeam, callInfo)
+	lockStandUpRepoMockDeleteAllForTeam.Unlock()
+	return mock.DeleteAllForTeamFunc(id)
+}
+
+// DeleteAllForTeamCalls gets all the calls that were made to DeleteAllForTeam.
+// Check the length with:
+//     len(mockedStandUpRepo.DeleteAllForTeamCalls())
+func (mock *StandUpRepoMock) DeleteAllForTeamCalls() []struct {
+	ID string
+} {
+	var calls []struct {
+		ID string
+	}
+	lockStandUpRepoMockDeleteAllForTeam.RLock()
+	calls = mock.calls.DeleteAllForTeam
+	lockStandUpRepoMockDeleteAllForTeam.RUnlock()
 	return calls
 }
 

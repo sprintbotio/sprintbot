@@ -23,6 +23,7 @@ type ActionHandler struct {
 	teamService    *team.Service
 	standUpService *standup.Service
 	userService    *user.Service
+	perms          *chat.Permissions
 }
 
 const (
@@ -34,8 +35,8 @@ type actionHandler func(chat.Command, *Event) (string, error)
 // this is added to by each actions Register method
 var actionHandlers = map[string]actionHandler{}
 
-func NewActionHandler(teamService *team.Service, standupService *standup.Service, userService *user.Service) *ActionHandler {
-	return &ActionHandler{teamService: teamService, standUpService: standupService, userService: userService}
+func NewActionHandler(teamService *team.Service, standupService *standup.Service, userService *user.Service, perms *chat.Permissions) *ActionHandler {
+	return &ActionHandler{teamService: teamService, standUpService: standupService, userService: userService, perms: perms}
 }
 
 func (ah *ActionHandler) Handle(m chat.Message) string {
@@ -74,7 +75,12 @@ func (ah *ActionHandler) Handle(m chat.Message) string {
 		return commonErrResp
 	}
 	logrus.Info("cmd parsed ", cmd.Name, cmd.Args, cmd.Requester)
-	if !chat.CanUserDoCmd(u, cmd) {
+	can, err := ah.perms.CanUserDoCmd(u, cmd)
+	if err != nil {
+		logrus.Error("failed to check is user can do cmd. Assuming no.")
+		return "sorry but you cannot do that."
+	}
+	if !can {
 		logrus.Error("user ", u.Name, " cannot perform action ", cmd.Name)
 		return "sorry but you cannot do that."
 	}

@@ -14,18 +14,14 @@ type Service struct {
 	sr            domain.ScheduleRepo
 	sl            domain.StandUpRepo
 	standUpRunner Runner
+	checkInterval time.Duration
 }
 
-func NewStandUpService(ts domain.TeamRepo, sr domain.ScheduleRepo, sRepo domain.StandUpRepo) *Service {
-	return &Service{ts: ts, sr: sr, sl: sRepo}
+func NewStandUpService(ts domain.TeamRepo, sr domain.ScheduleRepo, sRepo domain.StandUpRepo, checkInterval time.Duration) *Service {
+	return &Service{ts: ts, sr: sr, sl: sRepo, checkInterval: checkInterval}
 }
 
-type RepeatSchedule uint8
-
-const (
-	RepeatEveryDay = RepeatSchedule(iota)
-	RepeatEveryWeekDay
-)
+var DefaultCheckInterval = time.Second * 60
 
 func (ss *Service) SaveTime(teamID string, hour, minute int64, timeZone string) error {
 
@@ -67,7 +63,8 @@ var standUpMsgs = map[string]chan domain.StandUpMsg{}
 func (ss *Service) Schedule(ctx context.Context, runner Runner) {
 	ss.standUpRunner = runner
 	//TODO NEEDS TO RECOVER IF A STANDUP WAS IN PROGRESS BUT THE SERVER FAILED AND IT IS WITHIN A CERTAIN WINDOW (IE 5 MINS)
-	tick := time.NewTicker(time.Second * 60)
+	tick := time.NewTicker(ss.checkInterval)
+L:
 	for {
 		select {
 		case <-tick.C:
@@ -98,6 +95,7 @@ func (ss *Service) Schedule(ctx context.Context, runner Runner) {
 			}
 		case <-ctx.Done():
 			tick.Stop()
+			break L
 		}
 	}
 }
@@ -127,6 +125,10 @@ func (ss *Service) shouldRunStandUp(s *domain.StandupSchedule) (bool, error) {
 	minuteTime := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, l)
 	standup := time.Date(t.Year(), t.Month(), t.Day(), int(s.Hour), int(s.Min), 0.0, 0, l)
 	logrus.Debug("checking time for standup ", t.Unix(), "standup time ", standup.Unix(), t, standup, minuteTime.Unix() == standup.Unix())
+	if s.PausedUntil == -1 || s.PausedUntil > standup.Unix() {
+		logrus.Debug("standup is paused ")
+		return false, nil
+	}
 	return minuteTime.Unix() == standup.Unix(), nil
 }
 
@@ -182,6 +184,7 @@ type ChatInterface interface {
 	SendMessageToTeam(teamID string, msg string) error
 }
 
+//go:generate moq -out standUpRunner_mock.go . Runner
 type Runner interface {
 	Announce(teamID string, minutesBefore time.Duration)
 	Run(teamID, tz string, msgChan chan domain.StandUpMsg)

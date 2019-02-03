@@ -28,6 +28,11 @@ spec:
         env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: "/data/auth/gchat.json"
+        - name: GOOGLE_CHAT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gchat-auth
+              key: gkey
         volumeMounts:
           - mountPath: "/data/bolt"
             name: bolt-storage

@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"flag"
-
 	"net/http"
+	"os"
 
 	"github.com/sprintbot.io/sprintbot/pkg/standup"
 
@@ -66,12 +66,12 @@ func main() {
 	userService := user.NewService(userRepo)
 	router := web.BuildRouter()
 	logger := logrus.StandardLogger()
-	standupService := standup.NewStandUpService(teamRepo, scheduleRepo, standUpRepo)
+	standupService := standup.NewStandUpService(teamRepo, scheduleRepo, standUpRepo, standup.DefaultCheckInterval)
 	var runner standup.Runner
 
 	if platform == "hangouts" {
 		// hangout client
-
+		gKey := os.Getenv("GOOGLE_CHAT_KEY")
 		gClient, err := google.DefaultClient(context.TODO(), "https://www.googleapis.com/auth/chat.bot")
 		if err != nil {
 			panic(err)
@@ -83,12 +83,13 @@ func main() {
 		spacesService := gchat.NewSpacesService(Gservice)
 		hangoutService := sprintBotGchat.NewService(spacesService)
 		runner = sprintBotGchat.NewStandUpRunner(hangoutService, teamService, standUpRepo)
+		perms := chat.NewPermissions(teamService)
 
-		hangoutChatHandler := sprintBotGchat.NewActionHandler(teamService, standupService, userService)
+		hangoutChatHandler := sprintBotGchat.NewActionHandler(teamService, standupService, userService, perms)
 
 		chatActionHandler.RegisterHandler(hangoutChatHandler)
 
-		handler := web.NewHangoutHandler(chatActionHandler)
+		handler := web.NewHangoutHandler(chatActionHandler, gKey)
 		web.MountHangoutHandler(router, handler)
 		// register commands
 		sprintBotGchat.NewRegisterationUseCase(userService, teamService, standupService).Register()

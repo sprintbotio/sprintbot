@@ -27,10 +27,11 @@ type Team struct {
 }
 
 type StandupSchedule struct {
-	Hour     int64
-	Min      int64
-	TimeZone string
-	TeamID   string
+	Hour        int64
+	Min         int64
+	TimeZone    string
+	TeamID      string
+	PausedUntil int64
 }
 
 type StandUp struct {
@@ -63,7 +64,7 @@ type StandUpLog struct {
 	UserName string
 	UserID   string
 	Message  string
-	Comments []string
+	Comments []*StandUpLog
 }
 
 //go:generate moq -out mockStandUpRepo.go . StandUpRepo

@@ -26,12 +26,16 @@ func NewStandUpUseCase(standUpService *standup.Service, us *user.Service) *Stand
 	return &StandUpUseCase{standUpService: standUpService, userService: us}
 }
 
+const (
+	attemptedScheduleHelp = `It looks like you are trying to schedule a stand up?
+please resend with the following format ` +
+		"```schedule standup at HH:SS <TimeZone (E.G Europe/Dublin)>.```" + `
+`
+)
+
 func (ss *StandUpUseCase) ScheduleStandUp(cmd chat.Command, event *Event) (string, error) {
 	if len(cmd.Args) < 4 && cmd.NoEmptyArgs() {
-		return `It looks like you are trying to schedule a stand up?
-please resend with the following format ` +
-			"```schedule standup at HH:SS <TimeZone (E.G Europe/Dublin)>.```" + `
-`, nil
+		return attemptedScheduleHelp, nil
 	}
 	hour, err := strconv.ParseInt(cmd.Args[1], 10, 64)
 	if err != nil {
@@ -45,6 +49,11 @@ please resend with the following format ` +
 		return "", err
 	}
 	return "Stand Up Scheduled", nil
+}
+
+func (ss *StandUpUseCase) PauseStandUp(cmd chat.Command, event *Event) (string, error) {
+	//ss.standUpService.LoadStandUp()
+	return "", nil
 }
 
 func (ss *StandUpUseCase) StandUpLog(cmd chat.Command, event *Event) (string, error) {
@@ -61,6 +70,11 @@ func (ss *StandUpUseCase) StandUpLog(cmd chat.Command, event *Event) (string, er
 	logrus.Debug("logs found ", len(standUp.Log))
 	for _, l := range standUp.Log {
 		res += fmt.Sprintf("@" + l.UserName + " logged: \n ```" + l.Message + "``` \n")
+		if len(l.Comments) > 0 {
+			for _, c := range l.Comments {
+				res += fmt.Sprintf("@" + c.UserName + " commented: \n ```" + c.Message + "``` \n")
+			}
+		}
 	}
 	return res, nil
 }
